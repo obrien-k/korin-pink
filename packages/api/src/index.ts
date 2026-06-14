@@ -1,11 +1,19 @@
 import Fastify from 'fastify';
 import { ircRoutes } from './routes/irc.js';
+import { filesRoutes } from './routes/files.js';
+import { wikiRoutes } from './routes/wiki.js';
+import { aiRoutes } from './routes/ai.js';
+import { mailRoutes } from './routes/mail.js';
 
 const server = Fastify({
   logger: true
 });
 
 server.register(ircRoutes);
+server.register(filesRoutes);
+server.register(wikiRoutes);
+server.register(aiRoutes);
+server.register(mailRoutes);
 
 server.get('/health', async () => {
   return { status: 'ok' };
