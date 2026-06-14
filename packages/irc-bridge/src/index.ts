@@ -8,4 +8,4 @@ function handleSigterm() {
 process.on('SIGTERM', handleSigterm);
 process.on('SIGINT', handleSigterm);
 
-// TODO: Connect to Ergo and track events, flush to korin API metrics endpoint.
+// TODO(#2): Connect to Ergo and track events, flush to korin API metrics endpoint.
