@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
+  <channel>
+    <title>Welcome to the Internet</title>
+    <link>https://orphic.enterprises/welcome-to-the-internet</link>
+    <language>en-us</language>
+    <copyright>This work is licensed under Creative Commons Attribution 4.0 International License.</copyright>
+    <itunes:subtitle>Internet topics are a primary interest, but as internet denizens we welcome our panel, guests, and listeners/viewers to bring their own topics for discussion.</itunes:subtitle>
+    <itunes:author>Orphic Enterprises</itunes:author>
+    <itunes:summary>Internet topics like Linux servers, graphic design, SEO, and DevOps are a primary interest, but as internet denizens we welcome our panel, guests, and listeners/viewers to bring their own topics for discussion.</itunes:summary>  
+    <itunes:owner>
+      <itunes:name>Orphic Enterprises</itunes:name>
+      <itunes:email>events@orphic.enterprises</itunes:email>
+    </itunes:owner>
+    <itunes:image href="https://orphic.enterprises/sites/default/files/inline-images/welcome-to-the-internet-cover.jpg" />
+    <itunes:category text="Technology"/>
+    <itunes:explicit>yes</itunes:explicit>
+    
+      <item>
+        <title>Pilot</title>
+        <itunes:author>Orphic Enterprises</itunes:author>
+        <itunes:subtitle>Introduction to the podcast, our panel, and some of the latest tech news.</itunes:subtitle>
+        <itunes:summary>Show Notes:
+
+06:30 - Technology in Elections
+
+Related Links:
+https://media.ccc.de/v/31c3_-_6344_-_en_-_saal_1_-_201412281400_-_security_analysis_of_estonia_s_internet_voting_system_-_j_alex_halderman
+https://www.youtube.com/watch?v=w3_0x6oaDmI
+https://en.wikipedia.org/wiki/Vermin_Supreme
+
+17:10 - Halloween Spoils
+Related Links:
+https://www.imdb.com/title/tt0110978/
+https://www.kvue.com/article/news/local/texas/dine-inside-the-original-home-featured-in-texas-chainsaw-massacre-in-kingsland/269-cbf1671e-6be7-484e-a00e-c707a1568d91
+https://www.imdb.com/title/tt0077651
+
+24:35 - Guest Panel
+
+SelfHostPro&#x27;s Yacht project: https://github.com/SelfhostedPro/Yacht
+
+25:05 - Cyberpunk 2077 Delay/Software release delays
+https://www.theverge.com/2020/10/27/21536662/cyberpunk-2077-cd-projekt-red-delay-december
+
+38:12 - What Operating Systems do you run?
+
+https://apple.com/macos
+https://microsoft.com/windows
+https://ubuntu.com
+
+50:20 - TIG/ELK Stack Explanation
+
+51:48 - Rural Broadband discussion
+
+Related Links:
+https://berniesanders.com/issues/high-speed-internet-all/
+
+59:58 - What is SelfHostedPro/Yacht?
+
+1:02:00 - &quot;Bruh&quot; Games
+
+1:04:00 - iPhone 12 Camera can&#x27;t be replaced aftermarket
+
+https://www.ifixit.com/News/45921/is-this-the-end-of-the-repairable-iphone
+
+Music by Mantra Love: https://mantralove.com - Learn more about &quot;Welcome to the Internet&quot; at https://orphic.enterprises/welcome-to-the-internet</itunes:summary>
+        <itunes:image href="https://orphic.enterprises/podcast/welcome-to-the-internet-cover.jpg" />
+        <enclosure url="https://orphic.enterprises/podcast/00%20Welcome%20to%20the%20Internet%20-%20Pilot.mp3" length="45140242" type="audio/mpeg"/>
+        <itunes:explicit>yes</itunes:explicit>
+        <guid></guid>
+        <pubDate>Wed Nov 04 2020 00:14:02 GMT-0600 (Central Standard Time)</pubDate>
+        <itunes:duration>01:07:47</itunes:duration>
+      </item>
+    
+      <item>
+        <title>Ecommerce</title>
+        <itunes:author>Orphic Enterprises</itunes:author>
+        <itunes:subtitle>Discussion of Ecommerce related topics.</itunes:subtitle>
+        <itunes:summary>Show Notes:
+
+Guests:
+Seve: https://seve.blog/
+Topher: https://topher1kenobe.com/
+
+01:51 - Seve&#x27;s SevCoin
+12:50 - Thoughts on Amazon
+19:30 - Neopets
+23:00 - CBD vs. THC
+31:15 - Political influence in businesses
+40:00 - What was your first online purchase?
+55:00 - Do you use Google Play Store or iTunes for media?
+01:05:45 - Telnet experiences
+01:09:30 - Topher&#x27;s recommendation for WordPress themes
+01:13:00 - Topher&#x27;s &quot;Must-Have&quot; WordPress plugins
+https://wp-rocket.me/
+https://wordpress.org/plugins/wp-super-cache/
+https://wordpress.org/plugins/public-post-preview/
+https://wordpress.org/plugins/press-permit-core/
+01:19:20 - Topher&#x27;s WordPress hosting recommendations
+https://dreamhost.com/
+https://convesio.com/
+https://wpengine.com/</itunes:summary>
+        <itunes:image href="https://orphic.enterprises/podcast/welcome-to-the-internet-cover.jpg" />
+        <enclosure url="https://orphic.enterprises/podcast/01%20Welcome%20to%20the%20Internet%20-%20Ecommerce.mp3" length="47788410" type="audio/mpeg"/>
+        <itunes:explicit>yes</itunes:explicit>
+        <guid></guid>
+        <pubDate>Sun Dec 06 2020 00:00:02 GMT-0600 (Central Standard Time)</pubDate>
+        <itunes:duration>01:23:42</itunes:duration>
+      </item>
+    
+  </channel>
+  </rss>

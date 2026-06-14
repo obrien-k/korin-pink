@@ -1,56 +1,63 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { parseStrictPodcast } from '../lib/rss_strict.js';
+import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
 
-const metricSchema = z.object({
-  stellarUserId: z.string(),
-  nick: z.string(),
-  presenceSeconds: z.number().int().nonnegative(),
-  messageCount: z.number().int().nonnegative(),
-  channels: z.array(z.string()).optional(),
-  lastSeen: z.string().optional()
+const InboundFeedSchema = z.object({
+  xmlPayload: z.string().min(1, 'Payload cannot be blank'),
+  templateType: z.enum(['podcast', 'minimal']),
+  environment: z.object({
+    osc8: z.boolean()
+  })
 });
 
-const metricsArraySchema = z.array(metricSchema);
-
-type MetricPayload = z.infer<typeof metricsArraySchema>;
-
-// In-memory store (to be flushed when stellar-api pulls)
-let metricsStore: MetricPayload = [];
-
-export async function ircRoutes(app: FastifyInstance) {
-  // Bridge -> API (internal push)
-  app.post('/irc/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
-    const bridgeSecret = request.headers['x-bridge-secret'];
-    if (bridgeSecret !== process.env.IRC_BRIDGE_SECRET) {
-      return reply.status(401).send({ error: 'Unauthorized bridge' });
+export async function ircNotificationRoutes(app: FastifyInstance): Promise<void> {
+  app.post('/irc/announce', async (request, reply) => {
+    const parseResult = InboundFeedSchema.safeParse(request.body);
+    
+    if (!parseResult.success) {
+      return reply.status(400).send({ 
+        error: 'Validation failed', 
+        details: parseResult.error.format() 
+      });
     }
+
+    const { xmlPayload, templateType, environment } = parseResult.data;
 
     try {
-      const parsed = metricsArraySchema.parse(request.body);
-      metricsStore.push(...parsed);
-      return reply.status(200).send({ success: true, count: parsed.length });
-    } catch (e) {
-      return reply.status(400).send({ error: 'Invalid payload schema', details: e });
+      if (templateType === 'podcast') {
+          const episodes = await parseStrictPodcast(xmlPayload);
+          if (episodes.length === 0) {
+            return reply.status(422).send({ error: 'Podcast feed does not contain any episodes' });
+          }
+          const data = episodes.map(ep => ({
+            episode: ep.title,
+            length: ep.duration,
+            stream: ep.audioUrl,
+            agenda: ep.timecodes
+          }));
+          return reply.send({
+            status: 'ready',
+            generator: 'Stellar Agent Substrate v1',
+            data
+          });
+        } else {
+        const artifacts = await parsePlatformFeed(xmlPayload);
+        const newestArtifact = artifacts[0];
+
+        if (!newestArtifact) {
+          return reply.status(422).send({ error: 'Platform feed does not contain any valid artifacts' });
+        }
+
+        const singleLine = renderMinimalIrc(newestArtifact, environment.osc8);
+        return reply.send({ success: true, mode: 'minimal', artifact: singleLine });
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown compilation failure';
+      return reply.status(500).send({ error: errorMessage });
     }
-  });
-
-  // stellar-api -> API (external pull)
-  app.get('/irc/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
-    const pullKey = request.headers['x-api-key'];
-    if (pullKey !== process.env.STELLAR_PULL_KEY) {
-      return reply.status(401).send({ error: 'Unauthorized pull' });
-    }
-
-    const query = request.query as { flush?: string };
-    const currentMetrics = [...metricsStore];
-
-    if (query.flush === 'true') {
-      metricsStore = [];
-    }
-
-    return reply.status(200).send({
-      metrics: currentMetrics,
-      ts: new Date().toISOString()
-    });
   });
 }
+
+// Alias expected by src/index.ts
+export const ircRoutes = ircNotificationRoutes;

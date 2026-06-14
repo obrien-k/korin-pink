@@ -1,0 +1,13 @@
+{$DOMAIN:localhost} {
+    # Serve static frontend
+    root * /srv/web
+    file_server
+
+    # Rewrite /irc/feed.xml to the static feed.xml in web
+    rewrite /irc/feed.xml /feed.xml
+
+    # Reverse proxy API and strip /api prefix
+    handle_path /api/* {
+        reverse_proxy api:3000
+    }
+}

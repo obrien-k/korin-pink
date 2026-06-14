@@ -2,7 +2,7 @@
 # Works on: local dev, VPS (OVH/Hetzner), self-hosted, ngrok
 # For GCP/AWS, use the platform-specific configs in infra/gcp/ or infra/aws/
 
-version: '3.9'
+
 
 services:
 
@@ -47,9 +47,9 @@ services:
   caddy:
     image: caddy:2-alpine
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"   # HTTP/3
+      - "8082:80"
+      - "8443:443"
+      - "8443:443/udp"   # HTTP/3
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ../packages/web:/srv/web:ro
