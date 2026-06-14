@@ -1,0 +1,158 @@
+# ergo.yaml — korin.pink IRC daemon config
+# Ergo IRCd: https://ergo.chat
+# Docs: https://github.com/ergochat/ergo/blob/stable/docs/MANUAL.md
+
+network:
+  name: korin
+
+server:
+  name: korin.pink
+  listeners:
+    # Plain IRC (redirect clients to TLS)
+    ":6667":
+      sts-only: true
+    # TLS IRC
+    ":6697":
+      tls:
+        cert: /etc/ergo/tls/fullchain.pem
+        key:  /etc/ergo/tls/privkey.pem
+    # IRC over WebSocket (TLS) — for web clients
+    ":8097":
+      websocket: true
+      tls:
+        cert: /etc/ergo/tls/fullchain.pem
+        key:  /etc/ergo/tls/privkey.pem
+
+  # STS (Strict Transport Security) — force TLS
+  sts:
+    enabled: true
+    duration: 1mo2d5h
+    port: 6697
+    preload: false
+
+  motd: /etc/ergo/motd.txt
+
+  # Casemapping: use "ascii" for simplicity, "precis" for unicode
+  casemapping: "ascii"
+
+  # Max connections
+  max-sendq: 96k
+  ip-limits:
+    count: true
+    max-concurrent-connections: 16
+    max-connections-per-duration: 64 per 10m
+
+  ip-cloaking:
+    enabled: true
+    netname: korin
+    cidr-len-ipv4: 32
+    cidr-len-ipv6: 64
+    num-bits: 64
+
+accounts:
+  # Require account registration to connect
+  registration:
+    enabled: true
+    # Allow registration via email (korin.pink custom domain)
+    email-verification:
+      enabled: false  # TODO: enable with korin.pink SMTP
+    allow-before-connect: true
+    throttling:
+      enabled: true
+      duration: 10m
+      max-attempts: 30
+
+  # Require SASL auth to connect
+  require-sasl:
+    enabled: true
+    # Bridge users auth via their Stellar credentials
+    # (SASL PLAIN — stellar-api validates the token)
+
+  authentication-enabled: true
+
+  nick-reservation:
+    enabled: true
+    additional-nick-limit: 2
+    method: strict
+    allow-custom-enforcement: true
+    guest-nickname-format: "Guest-*"
+    force-nick-equals-account: true
+
+channels:
+  registration:
+    enabled: true
+  default-modes: +nt
+
+  # Auto-create core community channels
+  # Operators manage these manually post-deploy
+
+history:
+  enabled: true
+  channel-length: 2048
+  query-cutoff: none
+  retention:
+    allow-individual-user-override: true
+    default:
+      duration: 7d
+  persistent:
+    enabled: true
+    unregistered-channels: false
+    registered-channels: opt-out
+    direct-messages: opt-out
+  restrictions:
+    expire-unregistered-accounts: true
+    query-cutoff: 1w
+
+datastore:
+  path: /var/lib/ergo/ircd.db
+  # Buntdb embedded — fine for small-medium communities
+  # Migrate to Postgres for scale: https://ergo.chat/postgres
+
+# Operator accounts (configure post-deploy)
+opers:
+  stellar-bridge:
+    # The irc-bridge bot's operator credentials
+    class: "bot"
+    hidden: true
+    # password hash: ergo genpasswd
+    password: ""  # TODO: set via ergo genpasswd
+
+oper-classes:
+  "bot":
+    title: Bridge Bot
+    capabilities:
+      - "oper:local_kill"
+      - "oper:local_ban"
+      - "snomask"
+      - "roleplay"
+      - "relaymsg"
+
+limits:
+  nicklen: 32
+  identlen: 20
+  channellen: 64
+  awaylen: 390
+  kicklen: 390
+  topiclen: 390
+  monitor-entries: 100
+  multiline:
+    max-bytes: 4096
+    max-lines: 100
+  whowas-entries: 100
+  chan-list-modes: 60
+  registration-messages: 1024
+
+fakelag:
+  enabled: true
+  window: 1s
+  burst-limit: 5
+  messages-per-second: 2
+  cooldown: 2s
+
+roleplay:
+  enabled: false
+
+logging:
+  - method: stderr
+    type: "*"
+    level: info

@@ -1,0 +1,153 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target'
+        required: true
+        type: choice
+        options: [gcp, aws, vps]
+
+jobs:
+
+  # ── Build images (platform-agnostic) ───────────────────────────────────────
+  # Set DEPLOY_TARGET repo variable to: gcp | aws | vps
+  # Images go to: GCP Artifact Registry | AWS ECR | GHCR
+
+  build:
+    name: build & push images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write   # for GHCR
+
+    outputs:
+      registry: ${{ steps.registry.outputs.reg }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve target
+        id: target
+        run: echo "val=${{ vars.DEPLOY_TARGET || github.event.inputs.target }}" >> $GITHUB_OUTPUT
+
+      # GCP
+      - if: steps.target.outputs.val == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+      - if: steps.target.outputs.val == 'gcp'
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      # AWS
+      - if: steps.target.outputs.val == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/github-actions-korin
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - if: steps.target.outputs.val == 'aws'
+        run: |
+          aws ecr get-login-password --region ${{ vars.AWS_REGION || 'us-east-1' }} \
+            | docker login --username AWS \
+              --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.AWS_REGION || 'us-east-1' }}.amazonaws.com
+
+      # VPS → GHCR
+      - if: steps.target.outputs.val == 'vps'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: set registry
+        id: registry
+        run: |
+          TARGET=${{ steps.target.outputs.val }}
+          case "$TARGET" in
+            gcp) REG="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/korin" ;;
+            aws) REG="${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.AWS_REGION || 'us-east-1' }}.amazonaws.com/korin" ;;
+            vps) REG="ghcr.io/${{ github.repository_owner }}/korin" ;;
+          esac
+          echo "reg=$REG" >> $GITHUB_OUTPUT
+
+      - name: build + push api
+        run: |
+          R=${{ steps.registry.outputs.reg }}
+          docker build -t $R/api:${{ github.sha }} -t $R/api:latest ./packages/api
+          docker push $R/api --all-tags
+
+      - name: build + push irc-bridge
+        run: |
+          R=${{ steps.registry.outputs.reg }}
+          docker build -t $R/irc-bridge:${{ github.sha }} -t $R/irc-bridge:latest ./packages/irc-bridge
+          docker push $R/irc-bridge --all-tags
+
+      - name: build + push ergo
+        run: |
+          R=${{ steps.registry.outputs.reg }}
+          docker build -t $R/ergo:${{ github.sha }} -t $R/ergo:latest ./packages/irc
+          docker push $R/ergo --all-tags
+
+  # ── Deploy: GCP ────────────────────────────────────────────────────────────
+  deploy-gcp:
+    needs: build
+    if: vars.DEPLOY_TARGET == 'gcp' || github.event.inputs.target == 'gcp'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: korin-api
+          region: us-central1
+          image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/korin/api:${{ github.sha }}
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: korin-irc-bridge
+          region: us-central1
+          image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/korin/irc-bridge:${{ github.sha }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gsutil -m rsync -r -d ./packages/web gs://korin-pink-web
+
+  # ── Deploy: AWS ────────────────────────────────────────────────────────────
+  deploy-aws:
+    needs: build
+    if: vars.DEPLOY_TARGET == 'aws' || github.event.inputs.target == 'aws'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/github-actions-korin
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - run: aws ecs update-service --cluster korin --service korin-api --force-new-deployment
+      - run: aws ecs update-service --cluster korin --service korin-irc-bridge --force-new-deployment
+      - run: aws s3 sync ./packages/web s3://korin-pink-web --delete
+
+  # ── Deploy: VPS ────────────────────────────────────────────────────────────
+  deploy-vps:
+    needs: build
+    if: vars.DEPLOY_TARGET == 'vps' || github.event.inputs.target == 'vps'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER || 'root' }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/korin.pink && git pull origin main
+            cd infra && docker compose pull && docker compose up -d

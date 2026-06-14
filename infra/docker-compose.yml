@@ -1,0 +1,71 @@
+# docker-compose.yml — universal baseline
+# Works on: local dev, VPS (OVH/Hetzner), self-hosted, ngrok
+# For GCP/AWS, use the platform-specific configs in infra/gcp/ or infra/aws/
+
+version: '3.9'
+
+services:
+
+  ergo:
+    build:
+      context: ../packages/irc
+    ports:
+      - "6667:6667"
+      - "6697:6697"
+      - "8097:8097"
+    volumes:
+      - ergo_data:/var/lib/ergo
+      - ${TLS_DIR:-./tls}:/etc/ergo/tls:ro
+    restart: unless-stopped
+    networks: [korin]
+
+  api:
+    build:
+      context: ../packages/api
+    ports:
+      - "3000:3000"
+    env_file: ../.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+    restart: unless-stopped
+    networks: [korin]
+    depends_on: [ergo]
+
+  irc-bridge:
+    build:
+      context: ../packages/irc-bridge
+    env_file: ../.env
+    environment:
+      - IRC_HOST=ergo
+      - IRC_PORT=6697
+      - KORIN_API_URL=http://api:3000
+    restart: unless-stopped
+    networks: [korin]
+    depends_on: [ergo, api]
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../packages/web:/srv/web:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    restart: unless-stopped
+    networks: [korin]
+    depends_on: [api]
+
+volumes:
+  ergo_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  korin:
+    driver: bridge
