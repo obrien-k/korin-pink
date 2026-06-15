@@ -14,7 +14,8 @@ services:
       - "6697:6697"
       - "8097:8097"
     volumes:
-      - ergo_data:/var/lib/ergo
+      # Bind-mount (not a named volume) so fail2ban can read ergo.log on the host.
+      - ./ergo-data:/var/lib/ergo
       - ${TLS_DIR:-./tls}:/etc/ergo/tls:ro
     restart: unless-stopped
     networks: [korin]
@@ -68,7 +69,6 @@ services:
     depends_on: [api, wiki]
 
 volumes:
-  ergo_data:
   caddy_data:
   caddy_config:
 

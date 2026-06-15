@@ -41,6 +41,43 @@ ufw enable
 usermod -aG docker $USER && newgrp docker
 ```
 
+## 1b. Security hardening (free abuse/flood mitigation)
+
+A brand-new domain gets probed on every open port immediately. We mitigate this
+for **$0** with host + container + app-layer controls. Run the generated script
+as the **Vultr "Startup Script"** (or by hand on first boot):
+
+```bash
+# Generated from the tested logic in packages/harden (pnpm --filter @korin/harden render)
+SSH_ALLOW_CIDR=<your.admin.ip>/32 IRC_ENABLED=false bash infra/vultr-startup.sh
+```
+
+It applies: `ufw` (default-deny; SSH limited to your IP), kernel SYN-flood
+sysctls, SSH key-only, `fail2ban` (SSH + Ergo via `infra/fail2ban/ergo.conf`),
+and the **DOCKER-USER** firewall chain with per-IP rate + concurrency limits on
+the IRC ports.
+
+> ⚠️ **Docker-published ports bypass `ufw`.** Docker inserts its own iptables
+> rules, so `ufw allow/deny` on `6697/8097/6667` does **nothing**. The real
+> filter is the **`DOCKER-USER`** chain — that's what the script populates. The
+> `ufw` IRC rules in the manual steps below are effectively no-ops; they're kept
+> only for clarity.
+
+> ⚠️ **Two firewalls on Vultr.** If you attach a **Vultr Firewall Group** (cloud
+> level), you must open the same ports there *in addition to* `ufw`/`DOCKER-USER`.
+> A port that works locally but not remotely is almost always the Vultr group.
+
+**Keep IRC closed until Ergo is live.** The script defaults to `IRC_ENABLED=false`
+— it opens only `22/80/443` and leaves `6697/8097/6667` closed. After Ergo is
+up (step 6), re-run with `IRC_ENABLED=true` to open and rate-limit the IRC ports.
+
+**Honest limit:** this stops connection floods, brute force, and app-layer abuse
+— *not* a true volumetric (L3/4) DDoS, which saturates the link before the box
+sees it. If you're ever targeted that way, enable Vultr's DDoS Protection add-on
+(region-gated, paid) or front IRC with Cloudflare Spectrum. For v0.x, reacting
+if it happens is a reasonable $0 bet; Ergo's `ip-limits`/`fakelag` are the
+app-layer backstop.
+
 ## 2. DNS
 
 Point these records at your VPS IP before deploying (Caddy needs HTTP-01 challenge):
@@ -50,6 +87,12 @@ A     korin.pink        → <your VPS IP>
 A     irc.korin.pink    → <your VPS IP>
 CNAME www.korin.pink    → korin.pink
 ```
+
+> **On Cloudflare:** `irc.korin.pink` must be **DNS-only (grey cloud)** — the
+> orange-cloud proxy doesn't carry IRC/TLS on 6697/8097 (that needs Spectrum).
+> Ergo terminates its own Let's Encrypt cert (step 4). If korin.pink's web is on
+> Cloudflare Pages, you only need the `irc.` record here; otherwise proxy the web
+> records as normal.
 
 Propagation: 5 min (Cloudflare) to 24h (others).
 

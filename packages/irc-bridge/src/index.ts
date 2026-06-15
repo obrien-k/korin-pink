@@ -1,4 +1,4 @@
-import Client from 'irc-framework';
+import { Client } from 'irc-framework';
 
 // ---------------------------------------------------------------------------
 // Config — all from env, sane defaults for local dev
