@@ -44,6 +44,12 @@ services:
     networks: [korin]
     depends_on: [ergo, api]
 
+  wiki:
+    build:
+      context: ../wiki
+    restart: unless-stopped
+    networks: [korin]
+
   caddy:
     image: caddy:2-alpine
     ports:
@@ -59,7 +65,7 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
     restart: unless-stopped
     networks: [korin]
-    depends_on: [api]
+    depends_on: [api, wiki]
 
 volumes:
   ergo_data:

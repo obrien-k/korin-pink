@@ -2,6 +2,7 @@
 id: irc-channels
 title: Channels
 sidebar_label: Channels
+slug: /irc/channels
 ---
 
 # Channel Directory

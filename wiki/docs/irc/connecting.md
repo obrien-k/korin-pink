@@ -2,6 +2,7 @@
 id: irc-connecting
 title: Connecting to IRC
 sidebar_label: Connecting
+slug: /irc/connecting
 ---
 
 # Connecting to korin.pink IRC

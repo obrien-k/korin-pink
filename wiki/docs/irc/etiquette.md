@@ -2,6 +2,7 @@
 id: irc-etiquette
 title: Community Etiquette
 sidebar_label: Etiquette
+slug: /irc/etiquette
 ---
 
 # Community Etiquette
