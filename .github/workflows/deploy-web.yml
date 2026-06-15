@@ -35,6 +35,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Build the Docusaurus wiki into the portal so /wiki/ is served from the
+      # same origin (mirrors the Caddy front-door routing in the self-hosted stack).
+      - name: Build wiki into portal (/wiki)
+        run: |
+          cd wiki
+          npm ci
+          npm run build
+          rm -rf ../packages/web/wiki
+          cp -r build ../packages/web/wiki
+
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:

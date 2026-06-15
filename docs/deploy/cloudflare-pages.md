@@ -6,11 +6,14 @@ Cloudflare DNS at it. The IRC/API/Ergo backend is a separate, later step
 (it will live on a subdomain such as `api.korin.pink` / `irc.korin.pink`).
 
 What's already wired in this repo:
-- `packages/web/` — the static site (`index.html`, `styles.css`, `feed.xml`,
+- `packages/web/` — the static portal (`index.html`, `styles.css`, `feed.xml`,
   `main.js`).
+- `wiki/` — the Docusaurus wiki (`baseUrl: /wiki/`). The build command below
+  compiles it into `packages/web/wiki/` so the portal and wiki ship as one
+  bundle and `korin.pink/wiki/` works — matching the self-hosted Caddy routing.
 - `packages/web/_redirects` — maps `/irc/feed.xml` → `/feed.xml` on Pages.
-- `.github/workflows/deploy-web.yml` — optional GitHub Actions deploy, dormant
-  until you set `DEPLOY_WEB=true` (see Option B).
+- `.github/workflows/deploy-web.yml` — optional GitHub Actions deploy (builds
+  the wiki, then publishes), dormant until you set `DEPLOY_WEB=true` (Option B).
 
 You only need **one** of the two options below.
 
@@ -41,11 +44,15 @@ the project.
 2. Authorize the Cloudflare GitHub App and select `obrien-k/korin-pink`.
 3. Build settings:
    - **Production branch:** `main`
-   - **Framework preset:** None
-   - **Build command:** *(leave blank — it's a static site)*
+   - **Framework preset:** **None** (the portal is hand-built static HTML; we
+     supply our own build command for the wiki, so there's nothing to detect)
+   - **Build command:**
+     ```
+     cd wiki && npm ci && npm run build && rm -rf ../packages/web/wiki && cp -r build ../packages/web/wiki
+     ```
    - **Build output directory:** `packages/web`
 4. **Save and Deploy.** Cloudflare builds a `*.pages.dev` preview URL. Confirm
-   the portal renders there.
+   both the portal (`/`) and the wiki (`/wiki/`) render there.
 
 Every push to `main` that touches `packages/web/` now redeploys automatically.
 
@@ -97,9 +104,10 @@ That's it — `https://korin.pink` now serves the portal.
 
 ## What this does NOT cover (backend, later)
 
-The portal links to `/wiki`, `/files`, `/ai`, and `irc://irc.korin.pink` —
-these need the API + Ergo backend, which Cloudflare Pages cannot host (Ergo
-needs a persistent TCP process). When you're ready, deploy `packages/api`,
+The portal's `/wiki` is served statically by the build command above. But
+`/files`, `/ai`, and `irc://irc.korin.pink` need the API + Ergo backend, which
+Cloudflare Pages cannot host (Ergo needs a persistent TCP process). When you're
+ready, deploy `packages/api`,
 `packages/irc-bridge`, and `packages/irc` to Cloud Run + Compute Engine (see
 `docs/deploy/gcp.md`) or a VPS (`docs/deploy/vps.md`), then add the
 `api`/`irc` subdomain records above. Note: `infra/gcp/main.tf` referenced by the

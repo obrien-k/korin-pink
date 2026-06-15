@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 .turbo/
+# Wiki build output compiled into the portal at deploy time (Cloudflare Pages / CI)
+packages/web/wiki/
 *.log
 infra/tls/
 infra/secrets/
