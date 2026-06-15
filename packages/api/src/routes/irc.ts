@@ -3,6 +3,45 @@ import { z } from 'zod';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
 import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
 
+// ---------------------------------------------------------------------------
+// IRC metrics — shared types
+// ---------------------------------------------------------------------------
+
+export interface UserMetrics {
+  nick: string;
+  stellarId?: string;
+  presenceSeconds: number;
+  messageCount: number;
+  channelCount: number;
+  channels: string[];
+  windowStart: number; // unix epoch ms
+  windowEnd: number;
+}
+
+// In-process store for the most recent flush from the irc-bridge.
+// stellar-api polls GET /irc/metrics and consumes this.
+let metricsStore: UserMetrics[] = [];
+let lastFlushAt: number | null = null;
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const MetricsFlushSchema = z.object({
+  users: z.array(
+    z.object({
+      nick: z.string().min(1),
+      stellarId: z.string().optional(),
+      presenceSeconds: z.number().int().nonnegative(),
+      messageCount: z.number().int().nonnegative(),
+      channelCount: z.number().int().nonnegative(),
+      channels: z.array(z.string()),
+      windowStart: z.number().int().positive(),
+      windowEnd: z.number().int().positive(),
+    })
+  ),
+});
+
 const InboundFeedSchema = z.object({
   xmlPayload: z.string().min(1, 'Payload cannot be blank'),
   templateType: z.enum(['podcast', 'minimal']),
@@ -59,5 +98,41 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
   });
 }
 
+// ---------------------------------------------------------------------------
+// IRC metrics routes
+// ---------------------------------------------------------------------------
+
+async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
+  const bridgeSecret = process.env.IRC_BRIDGE_SECRET;
+
+  // POST /irc/metrics — irc-bridge pushes a flush window here
+  app.post('/irc/metrics', async (request, reply) => {
+    if (!bridgeSecret || request.headers['x-bridge-secret'] !== bridgeSecret) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const result = MetricsFlushSchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ error: 'Validation failed', details: result.error.format() });
+    }
+
+    metricsStore = result.data.users;
+    lastFlushAt = Date.now();
+
+    return reply.send({ ok: true, accepted: metricsStore.length });
+  });
+
+  // GET /irc/metrics — stellar-api polls this
+  app.get('/irc/metrics', async (request, reply) => {
+    const pullKey = process.env.STELLAR_PULL_KEY;
+    if (!pullKey || request.headers['x-pull-key'] !== pullKey) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    return reply.send({ users: metricsStore, lastFlushAt });
+  });
+}
+
 // Alias expected by src/index.ts
 export const ircRoutes = ircNotificationRoutes;
+export { ircMetricsRoutes };

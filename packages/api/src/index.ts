@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { ircRoutes } from './routes/irc.js';
+import { ircRoutes, ircMetricsRoutes } from './routes/irc.js';
 import { filesRoutes } from './routes/files.js';
 import { wikiRoutes } from './routes/wiki.js';
 import { aiRoutes } from './routes/ai.js';
@@ -10,6 +10,7 @@ const server = Fastify({
 });
 
 server.register(ircRoutes);
+server.register(ircMetricsRoutes);
 server.register(filesRoutes);
 server.register(wikiRoutes);
 server.register(aiRoutes);

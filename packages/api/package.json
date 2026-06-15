@@ -1,6 +1,6 @@
 {
   "name": "@korin/api",
-  "version": "0.0.01",
+  "version": "0.1.1",
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
