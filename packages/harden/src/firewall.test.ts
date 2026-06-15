@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFirewallRules, type FirewallConfig } from './firewall.js';
+import { buildFirewallRules, buildIrcPortRules, type FirewallConfig } from './firewall.js';
 
 function cfg(overrides: Partial<FirewallConfig> = {}): FirewallConfig {
   return {
@@ -39,6 +39,15 @@ test('caps concurrent IRC connections per IP when IRC is enabled', () => {
       `expected a connlimit rule for port ${port}`,
     );
   }
+});
+
+test('buildIrcPortRules emits rate + conn + accept per port, accept last', () => {
+  const rules = buildIrcPortRules([6697], { newConnsPerMinPerIp: 30, maxConcurrentPerIp: 8 });
+  assert.ok(rules.some((r) => r.includes('--dport 6697') && r.includes('--hashlimit')));
+  assert.ok(rules.some((r) => r.includes('--dport 6697') && r.includes('--connlimit-above 8')));
+  const acceptIdx = rules.findIndex((r) => /-j RETURN/.test(r));
+  const lastDropIdx = rules.reduce((a, r, i) => (r.includes('-j DROP') ? i : a), -1);
+  assert.ok(acceptIdx > lastDropIdx, 'accept must follow the limit drops');
 });
 
 test('keeps IRC ports closed until Ergo is live (ircEnabled=false)', () => {
