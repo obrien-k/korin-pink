@@ -43,8 +43,8 @@ Use the service account JSON as `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ### stellar-api
 
-Issues live at `orphic-inc/stellar-api`. IRC metrics flow via `POST /reputation/irc-metrics`.
-See `docs/agents/domain.md` for the integration contract.
+Issues live at `orphic-inc/stellar-api`. stellar-api **pulls** raw IRC signals from `GET /irc/metrics`; release announces arrive via `POST /irc/announce` (stellar-api ADR-0013 §Integration contract). korin does **not** push metrics to stellar.
+See `docs/domain.md` for the integration contract.
 
 ---
 

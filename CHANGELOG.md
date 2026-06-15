@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- `packages/api/src/lib/stellar.ts`: aligned the stellar-api client to the
+  ADR-0013 integration contract — removed the orphaned metrics **push** path
+  (`flushIRCMetrics` → `POST /reputation/irc-metrics`; metrics are pull-only),
+  and fixed the korin→stellar calls to their real paths/shapes
+  (`/api/users/by-irc-nick/:nick`, `PUT /api/users/:id/irc-nick` `{ ircNick }`,
+  `GET /api/users/:id/reputation`).
+- `packages/api`: `POST /irc/announce` now requires `x-pull-key` (stellar
+  presents the shared pull key when pushing release RSS).
+- Docs (`home.md`, `domain.md`, `CLAUDE.md`, `CONTEXT.md`): pinned the
+  bidirectional contract (pull metrics / push announce / korin→stellar service
+  calls); corrected the payload shape and stale `stellar ADR-0005` references
+  (now stellar-api ADR-0013).
+
 ## [v0.1.1] - 2026-06-14
 
 ### Added

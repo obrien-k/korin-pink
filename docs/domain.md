@@ -60,15 +60,24 @@ CommunityValueIndex =
 
 **Do not implement score weighting.** The formula `activity * consistency * channelQuality` is owned and computed by `stellar-api`. Korin emits raw signals and reports them on request.
 
-### stellar-api Endpoints (expected)
+### Integration endpoints (stellar-api ADR-0013 §Integration contract)
 
-| Method | Path                               | Called by       |
-| ------ | ---------------------------------- | --------------- |
-| PUT    | /users/:id/irc-nick                | korin (on SASL) |
-| POST   | /reputation/irc-metrics            | stellar-api POV: korin pushes; actual: stellar polls korin |
-| GET    | /users/:id/reputation              | korin (read-only display) |
+**stellar-api endpoints korin calls** (Bearer `STELLAR_API_KEY`):
 
-> ⚠️ Exact signatures TBD. See open question #1 in `CONTEXT.md` and `orphic-inc/stellar-api` issues.
+| Method | Path                          | Purpose                              |
+| ------ | ----------------------------- | ------------------------------------ |
+| GET    | /api/users/by-irc-nick/:nick  | resolve nick → Stellar account       |
+| PUT    | /api/users/:id/irc-nick       | link/clear nick (body `{ ircNick }`) |
+| GET    | /api/users/:id/reputation     | read CRS (display only)              |
+
+**korin endpoints stellar calls** (`x-pull-key: STELLAR_PULL_KEY`):
+
+| Method | Path          | Purpose                                            |
+| ------ | ------------- | -------------------------------------------------- |
+| GET    | /irc/metrics  | stellar **pulls** raw IRC signals (every ~5 min)   |
+| POST   | /irc/announce | stellar **pushes** release RSS for korin to render |
+
+> Pull-only for metrics — korin does **not** push to stellar. (Resolved the former open question #1.) The full contract is fixed in stellar-api ADR-0013.
 
 ---
 
