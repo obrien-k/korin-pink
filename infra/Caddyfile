@@ -1,13 +1,26 @@
+# korin.pink front-door / minified orchestrator.
+# Caddy is the single entrypoint; each service is routed by path prefix:
+#   /api/*   -> Fastify API container
+#   /wiki/*  -> Docusaurus wiki container (static, baseUrl /wiki/)
+#   /*       -> the static portal (the orchestrator index page)
+# New services (e.g. /files, /ai) slot in as additional handle blocks.
+
 {$DOMAIN:localhost} {
-    # Serve static frontend
-    root * /srv/web
-    file_server
-
-    # Rewrite /irc/feed.xml to the static feed.xml in web
-    rewrite /irc/feed.xml /feed.xml
-
-    # Reverse proxy API and strip /api prefix
+    # API — strip the /api prefix before forwarding.
     handle_path /api/* {
         reverse_proxy api:3000
+    }
+
+    # Wiki — Docusaurus is built with baseUrl /wiki/, so the prefix is kept.
+    redir /wiki /wiki/
+    handle /wiki/* {
+        reverse_proxy wiki:80
+    }
+
+    # Static portal — the front door. Serves everything else.
+    handle {
+        root * /srv/web
+        rewrite /irc/feed.xml /feed.xml
+        file_server
     }
 }
