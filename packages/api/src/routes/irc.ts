@@ -52,8 +52,15 @@ const InboundFeedSchema = z.object({
 
 export async function ircNotificationRoutes(app: FastifyInstance): Promise<void> {
   app.post('/irc/announce', async (request, reply) => {
+    // stellar-api pushes release RSS here (ADR-0013 §Integration contract),
+    // presenting the shared pull key. Fails closed when the key is unset.
+    const pullKey = process.env.STELLAR_PULL_KEY;
+    if (!pullKey || request.headers['x-pull-key'] !== pullKey) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
     const parseResult = InboundFeedSchema.safeParse(request.body);
-    
+
     if (!parseResult.success) {
       return reply.status(400).send({ 
         error: 'Validation failed', 

@@ -66,7 +66,7 @@ consistency    = presenceSeconds / windowDurationSeconds
 channelQuality = log1p(channelCount)   / log1p(5)
 ```
 
-**Integration pattern:** stellar-api pulls `GET /irc/metrics` every 5 min. Webhooks evaluated and deferred (see stellar ADR-0005). Korin emits raw signals only — scoring is stellar-api's responsibility.
+**Integration pattern:** stellar-api pulls `GET /irc/metrics` every 5 min. Webhooks evaluated and deferred (see stellar-api ADR-0013). Korin emits raw signals only — scoring is stellar-api's responsibility.
 
 **Nick mapping:** users link their Ergo nick to their Stellar account via `PUT /api/users/:id/irc-nick` on stellar-api. Self-reported, unique constraint, no SASL verification at v0.1.x.
 
@@ -107,9 +107,9 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | Ergo as IRC daemon | Single binary, IRCv3, SASL, Go, minimal deps | adr/001 |
 | GCP default, deployment-agnostic docs | Workspace integration; community may self-host | adr/002 |
 | irc-bridge as separate stateless service | Isolation; bridge crash doesn't affect API | adr/003 |
-| Pull (polling) over webhooks | Simpler; tolerates downtime; no retry needed at v0.1.x scale | stellar ADR-0005 |
+| Pull (polling) over webhooks | Simpler; tolerates downtime; no retry needed at v0.1.x scale | stellar-api ADR-0013 |
 | irc-bridge state ephemeral for v0.1.x | Flush windows short; loss on restart is one 60s window | — |
-| Nick mapping user-managed (self-reported) | No SASL verification needed at v0.1.x | stellar ADR-0005 |
+| Nick mapping user-managed (self-reported) | No SASL verification needed at v0.1.x | stellar-api ADR-0013 |
 | `irc-framework` as IRC client | IRCv3 support, SASL PLAIN, active maintenance | — |
 
 ---
