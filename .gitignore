@@ -10,4 +10,5 @@ packages/web/wiki/
 *.log
 infra/tls/
 infra/secrets/
+infra/ergo-data/
 .DS_Store

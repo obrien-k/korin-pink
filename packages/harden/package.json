@@ -1,0 +1,17 @@
+{
+  "name": "@korin/harden",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Test-driven host/Ergo hardening: firewall ruleset + fail2ban filter generators",
+  "scripts": {
+    "test": "node --import tsx --test src/*.test.ts",
+    "build": "tsc",
+    "render": "tsx src/render.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

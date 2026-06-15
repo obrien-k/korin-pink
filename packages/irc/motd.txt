@@ -1,0 +1,12 @@
+      _             _             _       _
+  | | _____  _ __(_)_ __    _ __ (_)_ __ | | __
+  | |/ / _ \| '__| | '_ \  | '_ \| | '_ \| |/ /
+  |   < (_) | |  | | | | | | |_) | | | | |   <
+  |_|\_\___/|_|  |_|_| |_| | .__/|_|_| |_|_|\_\
+                           |_|
+
+  korin.pink — Stellar community IRC
+
+  • Register your nick to link it to your Stellar account and earn IRCScore.
+  • TLS is required (port 6697). Be excellent to each other.
+  • Wiki: https://korin.pink/wiki/   ·   Conduct: /wiki/irc/etiquette

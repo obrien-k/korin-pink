@@ -39,8 +39,9 @@ server:
   max-sendq: 96k
   ip-limits:
     count: true
-    max-concurrent-connections: 16
-    max-connections-per-duration: 64 per 10m
+    # Kept in step with the DOCKER-USER connlimit (packages/harden firewall).
+    max-concurrent-connections: 8
+    max-connections-per-duration: 30 per 10m
 
   ip-cloaking:
     enabled: true
@@ -62,11 +63,12 @@ accounts:
       duration: 10m
       max-attempts: 30
 
-  # Require SASL auth to connect
+  # Open lurking: anyone may connect anonymously; registration is only needed to
+  # hold a nick / earn IRCScore. Matches the wiki's "no account required to lurk".
+  # (v0.x uses Ergo-NATIVE accounts in Buntdb — Ergo cannot delegate SASL to
+  # stellar-api; nick→Stellar mapping is self-reported via the korin API.)
   require-sasl:
-    enabled: true
-    # Bridge users auth via their Stellar credentials
-    # (SASL PLAIN — stellar-api validates the token)
+    enabled: false
 
   authentication-enabled: true
 
@@ -155,4 +157,9 @@ roleplay:
 logging:
   - method: stderr
     type: "*"
+    level: info
+  # File sink so fail2ban's [ergo] jail has a logpath (see infra/fail2ban/ergo.conf).
+  - method: file
+    filename: /var/lib/ergo/ergo.log
+    type: "* -userinput -useroutput"
     level: info
