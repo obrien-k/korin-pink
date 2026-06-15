@@ -1,0 +1,46 @@
+name: deploy-web
+
+# Publishes the static korin.pink portal (packages/web) to Cloudflare Pages.
+#
+# This workflow stays DORMANT until you opt in by setting the repository
+# variable DEPLOY_WEB=true (Settings → Secrets and variables → Actions →
+# Variables). That way it never fails red before Cloudflare is connected.
+#
+# Required secrets once enabled:
+#   CLOUDFLARE_API_TOKEN   - token with "Cloudflare Pages: Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID  - your Cloudflare account id
+#
+# The Pages project name defaults to "korin-pink"; override with the
+# CF_PAGES_PROJECT repository variable if you named it differently.
+#
+# Note: if you connect the repo via Cloudflare Pages' native Git integration
+# instead (recommended for the simplest setup), you do NOT need this workflow —
+# Cloudflare builds on push automatically. See docs/deploy/cloudflare-pages.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/web/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.DEPLOY_WEB == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy packages/web
+            --project-name=${{ vars.CF_PAGES_PROJECT || 'korin-pink' }}
+            --branch=main

@@ -1,0 +1,3 @@
+# Cloudflare Pages redirects/rewrites for the korin.pink static portal.
+# Mirrors the Caddyfile rewrite so the podcast feed is reachable at /irc/feed.xml.
+/irc/feed.xml   /feed.xml   200
