@@ -1,0 +1,15 @@
+{
+  "name": "@korin/irc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ergo IRCd config for korin.pink + a boot-validation test against the pinned Ergo image",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}
