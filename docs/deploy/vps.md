@@ -143,21 +143,23 @@ Option B — certbot standalone (most reliable):
 apt install -y certbot
 ufw allow 80/tcp        # certbot --standalone is a host listener; DOCKER-USER
                         # only filters Docker-published ports, not host procs
-certbot certonly --standalone -d irc.korin.pink
 
-# Copy REAL files into infra/tls — do NOT symlink. Only infra/tls is bind-mounted
-# into the ergo container; a symlink into /etc/letsencrypt dangles inside the
-# container (that path isn't mounted) and Ergo fails with "no such file".
+# Issue the cert AND register the renewal deploy-hook in one call. We copy the
+# cert into infra/tls (symlinks into /etc/letsencrypt dangle inside the ergo
+# container — that path isn't bind-mounted), so renewals won't propagate on
+# their own; the deploy-hook re-copies + restarts Ergo on each renewal. The
+# hook is saved to the renewal config on first issuance and runs on every
+# `certbot renew` thereafter (certbot.timer runs it twice daily).
+certbot certonly --standalone -d irc.korin.pink \
+  --deploy-hook 'cp /etc/letsencrypt/live/irc.korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem; cp /etc/letsencrypt/live/irc.korin.pink/privkey.pem /opt/korin.pink/infra/tls/privkey.pem; docker compose -f /opt/korin.pink/infra/docker-compose.yml restart ergo'
+
+# Deploy-hooks do NOT run on the initial issuance, so do the first copy by hand.
+# The ergo container runs as root, so the private key can stay 600 (don't 644 it).
 mkdir -p /opt/korin.pink/infra/tls
 cp /etc/letsencrypt/live/irc.korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem
 cp /etc/letsencrypt/live/irc.korin.pink/privkey.pem   /opt/korin.pink/infra/tls/privkey.pem
-chmod 644 /opt/korin.pink/infra/tls/*.pem
-
-# Because we copy (not symlink), a renewal won't propagate on its own. Register a
-# deploy-hook so each successful renewal re-copies the cert and restarts Ergo.
-# (certbot.timer already runs `certbot renew` twice daily.)
-certbot certonly --standalone -d irc.korin.pink \
-  --deploy-hook 'cp /etc/letsencrypt/live/irc.korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem; cp /etc/letsencrypt/live/irc.korin.pink/privkey.pem /opt/korin.pink/infra/tls/privkey.pem; docker compose -f /opt/korin.pink/infra/docker-compose.yml restart ergo'
+chmod 644 /opt/korin.pink/infra/tls/fullchain.pem
+chmod 600 /opt/korin.pink/infra/tls/privkey.pem
 ```
 
 > We issue only the `irc.` cert here — the web apex is served by Cloudflare Pages,

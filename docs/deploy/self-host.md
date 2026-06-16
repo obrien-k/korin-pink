@@ -78,13 +78,12 @@ DOMAIN=abc123.ngrok-free.app docker compose up caddy --force-recreate
 ## 5. Ergo first-run setup
 
 ```bash
-# Get a shell into the ergo container
-docker compose exec ergo sh
-
-# Create the bot oper password hash
-ergo genpasswd
+# Create the bot oper password hash. --entrypoint runs the ergo binary by its
+# absolute path — `ergo` isn't on PATH, and the image's run.sh wrapper boots
+# stock Ergo rather than genpasswd.
+docker compose run --rm --entrypoint /ircd-bin/ergo ergo genpasswd
 # paste the hash into packages/irc/ergo.yaml under opers.stellar-bridge.password
-# then rebuild: docker compose up ergo --build
+# config is baked at build time, so rebuild: docker compose up ergo --build
 ```
 
 ## notes
