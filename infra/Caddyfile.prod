@@ -1,0 +1,16 @@
+# Caddyfile.prod — production front-door for the Vultr box (short-term, pre-GCP).
+#
+# Caddy fronts ONLY the API here: the static portal and the Docusaurus wiki are
+# served from Cloudflare Pages, not this box (see docs/deploy/cloudflare-pages.md).
+# So there's no path-prefix routing — api.korin.pink maps straight to the api
+# container, and the API's own routes (/irc/metrics, /irc/announce, …) sit at the
+# root, exactly as the dev Caddyfile's `handle_path /api/*` strips them to.
+#
+# Auto-TLS: Caddy obtains a Let's Encrypt cert on first boot. Requires API_DOMAIN
+# to resolve to this box and ports 80/443 reachable (ufw already allows both;
+# the ACME HTTP-01 challenge rides 80). DNS-only (grey-cloud) on Cloudflare is the
+# simplest; CF-proxied also works since HTTP-01 passes through the proxy.
+
+{$API_DOMAIN} {
+	reverse_proxy api:3000
+}
