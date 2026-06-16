@@ -1,6 +1,6 @@
 {
   "name": "@korin/irc",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Ergo IRCd config for korin.pink + a boot-validation test against the pinned Ergo image",
