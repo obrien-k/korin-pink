@@ -52,10 +52,19 @@ as the **Vultr "Startup Script"** (or by hand on first boot):
 SSH_ALLOW_CIDR=<your.admin.ip>/32 IRC_ENABLED=false bash infra/vultr-startup.sh
 ```
 
-It applies: `ufw` (default-deny; SSH limited to your IP), kernel SYN-flood
-sysctls, SSH key-only, `fail2ban` (SSH + Ergo via `infra/fail2ban/ergo.conf`),
-and the **DOCKER-USER** firewall chain with per-IP rate + concurrency limits on
-the IRC ports.
+It applies: `ufw` (default-deny; SSH limited to your IP, the default world-open
+`22/tcp` rule removed), kernel SYN-flood sysctls, SSH key-only via the
+`/etc/ssh/sshd_config.d/00-korin-harden.conf` drop-in (a 00- drop-in outranks
+cloud-init's, which a `sed` on the main config would not), `fail2ban` (SSH + Ergo
+via `infra/fail2ban/ergo.conf`), and the **DOCKER-USER** firewall chain with
+per-IP rate + concurrency limits on the IRC ports.
+
+> Docker empties the `DOCKER-USER` chain every daemon start, so the script
+> installs a `korin-docker-user.service` systemd oneshot (ordered
+> `After=docker.service`) that replays the rules on every boot — Ubuntu 24.04
+> `Breaks` the old `netfilter-persistent` package under `ufw`, so this replaces
+> it. Re-running with `IRC_ENABLED=true` updates `/etc/korin/irc_enabled`, which
+> the unit honours on the next boot.
 
 > ⚠️ **Docker-published ports bypass `ufw`.** Docker inserts its own iptables
 > rules, so `ufw allow/deny` on `6697/8097/6667` does **nothing**. The real
