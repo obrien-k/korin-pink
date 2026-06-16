@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-06-16
+
 ### Added
 - `packages/irc/ergo.yaml`: reserved the core community channels — `operator-only`
   channel registration plus `korin-admin` (human SysOp) and `stellar-bridge`
@@ -17,6 +19,12 @@
   OOMs a 1 GB VPS; the wiki is served from Cloudflare Pages). `caddy`'s wiki
   dependency is `required: false`, so it still starts with the profile off
   (`/wiki/*` 502s, as expected) (#12).
+- `docs/GOVERNANCE.md`: canonical-clone map (which clone is authoritative for
+  what) plus the settled IRC auth-model decision — native Ergo accounts per
+  ADR-0013; `.env.example` and `packages/irc/ergo.yaml` updated to match (#23).
+- `packages/harden`: Ergo login-throttling to blunt brute-force connection
+  attempts (#19), plus a 2 GB swapfile provisioned by `infra/vultr-startup.sh`
+  for the 1 GB VPS (`packages/harden/src/startup.ts` + tests) (#24).
 
 ### Changed
 - `packages/api/src/lib/stellar.ts`: aligned the stellar-api client to the
@@ -31,6 +39,10 @@
   bidirectional contract (pull metrics / push announce / korin→stellar service
   calls); corrected the payload shape and stale `stellar ADR-0005` references
   (now stellar-api ADR-0013).
+- `packages/api`: consolidated to a single shared-secret auth guard
+  (`src/lib/auth.ts`) and one config seam (`src/config.ts`) — `index.ts` and
+  `routes/irc.ts` now read auth + config from one place instead of inline env
+  reads (`test/config-and-auth.test.ts`) (#25).
 
 ### Fixed
 - `packages/irc` (Docker): the Ergo image now actually launches `ergo.yaml`.
@@ -51,6 +63,10 @@
   issue the cert with a single `certbot certonly` + renewal deploy-hook, keep the
   private key at `600`, bypass the image wrapper for `genpasswd`, and document the
   `--profile wiki` opt-in (#13, #14).
+- `packages/harden`: fail2ban filter now matches the **real** Ergo 2.18 log
+  lines — the prior regex never matched, so the jail never actually banned;
+  `infra/fail2ban/ergo.conf` and `infra/vultr-startup.sh` corrected
+  (`packages/harden/src/fail2ban.ts` + tests) (#19, #22).
 
 ## [v0.1.1] - 2026-06-14
 
@@ -81,3 +97,8 @@
 
 ### Note
 `korin-omnibus` remains the private historical repository for overall schema/domain planning, but `korin-pink` serves as the public implementation monorepo.
+
+[Unreleased]: https://github.com/obrien-k/korin-pink/compare/v0.1.2...HEAD
+[v0.1.2]: https://github.com/obrien-k/korin-pink/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/obrien-k/korin-pink/compare/v0.1.0...v0.1.1
+[v0.1.0]: https://github.com/obrien-k/korin-pink/releases/tag/v0.1.0
