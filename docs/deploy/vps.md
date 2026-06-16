@@ -164,6 +164,11 @@ TLS_DIR=./tls docker compose up -d --build
 docker compose logs -f
 ```
 
+> The `wiki` service is profile-gated and **excluded by default** — its
+> Docusaurus build OOMs a 1 GB box and the wiki is already served from
+> Cloudflare Pages. Caddy's `/wiki/*` route will 502 here, which is expected.
+> Only run it locally if you have the RAM (≥2 GB / swap): add `--profile wiki`.
+
 ## 6. Ergo first-run setup
 
 ### 6a. Oper passwords
