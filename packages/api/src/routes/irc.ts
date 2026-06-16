@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { requireSharedSecret } from '../lib/auth.js';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
 import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
 
@@ -51,14 +52,11 @@ const InboundFeedSchema = z.object({
 });
 
 export async function ircNotificationRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/irc/announce', async (request, reply) => {
-    // stellar-api pushes release RSS here (ADR-0013 §Integration contract),
-    // presenting the shared pull key. Fails closed when the key is unset.
-    const pullKey = process.env.STELLAR_PULL_KEY;
-    if (!pullKey || request.headers['x-pull-key'] !== pullKey) {
-      return reply.status(401).send({ error: 'Unauthorized' });
-    }
-
+  // stellar-api pushes release RSS here (ADR-0013 §Integration contract),
+  // presenting the shared pull key. Auth is the one shared-secret guard.
+  app.post('/irc/announce', {
+    preHandler: requireSharedSecret('x-pull-key', app.config.stellarPullKey),
+  }, async (request, reply) => {
     const parseResult = InboundFeedSchema.safeParse(request.body);
 
     if (!parseResult.success) {
@@ -110,14 +108,10 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
 // ---------------------------------------------------------------------------
 
 async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
-  const bridgeSecret = process.env.IRC_BRIDGE_SECRET;
-
   // POST /irc/metrics — irc-bridge pushes a flush window here
-  app.post('/irc/metrics', async (request, reply) => {
-    if (!bridgeSecret || request.headers['x-bridge-secret'] !== bridgeSecret) {
-      return reply.status(401).send({ error: 'Unauthorized' });
-    }
-
+  app.post('/irc/metrics', {
+    preHandler: requireSharedSecret('x-bridge-secret', app.config.ircBridgeSecret),
+  }, async (request, reply) => {
     const result = MetricsFlushSchema.safeParse(request.body);
     if (!result.success) {
       return reply.status(400).send({ error: 'Validation failed', details: result.error.format() });
@@ -130,12 +124,9 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /irc/metrics — stellar-api polls this
-  app.get('/irc/metrics', async (request, reply) => {
-    const pullKey = process.env.STELLAR_PULL_KEY;
-    if (!pullKey || request.headers['x-pull-key'] !== pullKey) {
-      return reply.status(401).send({ error: 'Unauthorized' });
-    }
-
+  app.get('/irc/metrics', {
+    preHandler: requireSharedSecret('x-pull-key', app.config.stellarPullKey),
+  }, async (_request, reply) => {
     return reply.send({ users: metricsStore, lastFlushAt });
   });
 }
