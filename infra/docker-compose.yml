@@ -50,6 +50,10 @@ services:
       context: ../wiki
     restart: unless-stopped
     networks: [korin]
+    # Opt-in only. The Docusaurus build is memory-hungry and OOMs on a 1 GB VPS,
+    # and the wiki is already served from Cloudflare Pages (/wiki) in production.
+    # Default `docker compose up` skips it; bring it in with `--profile wiki`.
+    profiles: [wiki]
 
   caddy:
     image: caddy:2-alpine
@@ -66,7 +70,15 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
     restart: unless-stopped
     networks: [korin]
-    depends_on: [api, wiki]
+    depends_on:
+      api:
+        condition: service_started
+      # Not required: with the `wiki` profile off, caddy still starts and the
+      # /wiki/* route simply 502s (the wiki lives on Pages). With `--profile
+      # wiki`, caddy waits for the local wiki container.
+      wiki:
+        condition: service_started
+        required: false
 
 volumes:
   caddy_data:

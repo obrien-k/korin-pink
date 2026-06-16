@@ -45,6 +45,14 @@ Services:
 | api | http://localhost/api |
 | IRC | localhost:6697 (TLS) |
 
+The local Docusaurus `wiki` service is **opt-in** (it OOMs small VPSes and is
+served from Cloudflare Pages in prod). To run it locally — `/wiki` will 502
+without it — add the profile:
+
+```bash
+TLS_DIR=./tls DOMAIN=localhost docker compose --profile wiki up --build
+```
+
 ## 4. expose with ngrok
 
 To make IRC reachable from real clients (or expose to Stellar):
