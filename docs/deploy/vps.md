@@ -141,20 +141,27 @@ Option B — certbot standalone (most reliable):
 
 ```bash
 apt install -y certbot
-certbot certonly --standalone -d korin.pink -d irc.korin.pink
+ufw allow 80/tcp        # certbot --standalone is a host listener; DOCKER-USER
+                        # only filters Docker-published ports, not host procs
+certbot certonly --standalone -d irc.korin.pink
 
-# symlink into infra/tls
+# Copy REAL files into infra/tls — do NOT symlink. Only infra/tls is bind-mounted
+# into the ergo container; a symlink into /etc/letsencrypt dangles inside the
+# container (that path isn't mounted) and Ergo fails with "no such file".
 mkdir -p /opt/korin.pink/infra/tls
-ln -sf /etc/letsencrypt/live/korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem
-ln -sf /etc/letsencrypt/live/korin.pink/privkey.pem   /opt/korin.pink/infra/tls/privkey.pem
+cp /etc/letsencrypt/live/irc.korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem
+cp /etc/letsencrypt/live/irc.korin.pink/privkey.pem   /opt/korin.pink/infra/tls/privkey.pem
+chmod 644 /opt/korin.pink/infra/tls/*.pem
 
-# auto-renew (runs twice daily via systemd timer)
-systemctl enable --now certbot.timer
-
-# after renew, restart ergo to pick up new cert
-echo '0 3 * * * root certbot renew --quiet && docker compose -f /opt/korin.pink/infra/docker-compose.yml restart ergo' \
-  > /etc/cron.d/certbot-ergo
+# Because we copy (not symlink), a renewal won't propagate on its own. Register a
+# deploy-hook so each successful renewal re-copies the cert and restarts Ergo.
+# (certbot.timer already runs `certbot renew` twice daily.)
+certbot certonly --standalone -d irc.korin.pink \
+  --deploy-hook 'cp /etc/letsencrypt/live/irc.korin.pink/fullchain.pem /opt/korin.pink/infra/tls/fullchain.pem; cp /etc/letsencrypt/live/irc.korin.pink/privkey.pem /opt/korin.pink/infra/tls/privkey.pem; docker compose -f /opt/korin.pink/infra/docker-compose.yml restart ergo'
 ```
+
+> We issue only the `irc.` cert here — the web apex is served by Cloudflare Pages,
+> so Ergo is the only thing on this box that needs a public cert.
 
 ## 5. deploy
 
@@ -177,10 +184,16 @@ docker compose logs -f
 human SysOp) and `stellar-bridge` (the irc-bridge bot). Generate a hash for each
 and paste it into the matching `password:` field:
 
+`genpasswd` is interactive: it prompts for a plaintext password you choose and
+prints a bcrypt hash (`$2a$...`). The **hash** goes in `ergo.yaml`; the
+**plaintext** is what you type at `/OPER` later. Run it once per oper:
+
 ```bash
-docker compose exec ergo ergo genpasswd   # run once per oper; paste each hash
-# update packages/irc/ergo.yaml (opers.korin-admin / opers.stellar-bridge)
-# rebuild: docker compose up ergo --build -d
+# --entrypoint bypasses the image's run.sh wrapper (which isn't on PATH)
+docker compose run --rm --entrypoint /ircd-bin/ergo ergo genpasswd
+# update packages/irc/ergo.yaml (opers.korin-admin.password / opers.stellar-bridge.password)
+# config is baked at build time, so rebuild after editing:
+docker compose up ergo --build -d
 ```
 
 ### 6b. Reserve the core channels (SysOp)
