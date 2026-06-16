@@ -82,10 +82,15 @@ IRC_ENABLED="$(cat /etc/korin/irc_enabled 2>/dev/null || echo false)"
 # Flush first: the chain ships with a default "-j RETURN", so appended DROPs
 # would never be reached otherwise.
 iptables -F DOCKER-USER 2>/dev/null || true
+# Detect the public NIC at runtime (Vultr images vary: eth0, ens3, enp1s0, ...).
+# A hardcoded name that doesn't exist matches nothing, so the default DROP below
+# would silently strangle container egress + web ingress.
+PUBIF="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+PUBIF="${PUBIF:-eth0}"
 iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-iptables -A DOCKER-USER -o eth0 -m conntrack --ctstate NEW -j RETURN
-iptables -A DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 -j RETURN
-iptables -A DOCKER-USER -i eth0 -p udp --dport 443 -j RETURN
+iptables -A DOCKER-USER -o $PUBIF -m conntrack --ctstate NEW -j RETURN
+iptables -A DOCKER-USER -i $PUBIF -p tcp -m multiport --dports 80,443 -j RETURN
+iptables -A DOCKER-USER -i $PUBIF -p udp --dport 443 -j RETURN
 if [ "$IRC_ENABLED" = "true" ]; then
   iptables -A DOCKER-USER -p tcp --dport 6697 -m conntrack --ctstate NEW -m hashlimit --hashlimit-name irc6697 --hashlimit-mode srcip --hashlimit-above 30/min --hashlimit-burst 30 -j DROP
   iptables -A DOCKER-USER -p tcp --dport 6697 -m connlimit --connlimit-above 8 --connlimit-mask 32 -j DROP

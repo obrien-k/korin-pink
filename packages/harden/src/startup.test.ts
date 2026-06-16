@@ -43,14 +43,24 @@ test('frames the DOCKER-USER chain established-RETURN -> IRC gate -> default-DRO
 test('opens container egress + inbound 80/443 unconditionally, before the IRC gate', () => {
   const script = buildStartupScript(opts());
   const gateIdx = script.indexOf('if [ "$IRC_ENABLED" = "true" ]');
-  const egressIdx = script.indexOf('-o eth0 -m conntrack --ctstate NEW -j RETURN');
-  const webIdx = script.indexOf('-i eth0 -p tcp -m multiport --dports 80,443 -j RETURN');
+  const egressIdx = script.indexOf('-o $PUBIF -m conntrack --ctstate NEW -j RETURN');
+  const webIdx = script.indexOf('-i $PUBIF -p tcp -m multiport --dports 80,443 -j RETURN');
   assert.ok(egressIdx >= 0, 'expected a container-egress allow in the helper script');
   assert.ok(webIdx >= 0, 'expected an inbound 80/443 allow in the helper script');
   // They must be applied always, not gated behind IRC_ENABLED — the API/Caddy
   // stack needs egress (LE, stellar) and 80/443 whether or not Ergo is live.
   assert.ok(egressIdx < gateIdx, 'egress allow must precede the IRC gate (always on)');
   assert.ok(webIdx < gateIdx, 'web allow must precede the IRC gate (always on)');
+});
+
+test('detects the public NIC at runtime (not a hardcoded eth0), with a fallback', () => {
+  const script = buildStartupScript(opts());
+  // The helper must derive the iface from the routing table — a baked-in name
+  // that doesn't match (e.g. enp1s0 vs eth0) drops all egress + web ingress.
+  assert.match(script, /PUBIF="\$\(ip route get 1\.1\.1\.1.*dev/s, 'expected runtime iface detection');
+  assert.match(script, /PUBIF="\$\{PUBIF:-eth0\}"/, 'expected an eth0 fallback if detection fails');
+  // And the rules must reference the detected var, not a literal iface.
+  assert.doesNotMatch(script, /-o eth0 -m conntrack --ctstate NEW -j RETURN/, 'egress must use $PUBIF, not literal eth0');
 });
 
 test('closes the default world-open SSH rule, leaving only the admin-CIDR allow', () => {

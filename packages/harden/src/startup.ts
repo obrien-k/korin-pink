@@ -20,14 +20,19 @@ export interface StartupOptions {
  * (render.ts) is responsible for writing it to disk.
  */
 export function buildStartupScript(opts: StartupOptions): string {
-  const { ircPorts, limits, ergoLog, publicIface, webPorts } = opts;
+  const { ircPorts, limits, ergoLog, publicIface = 'eth0', webPorts } = opts;
 
   // Always-on head of the chain (established RETURN, container egress, inbound
   // web) followed by the gated IRC rules and a default DROP. The IRC port rules
   // are applied at RUNTIME, gated by $IRC_ENABLED, so re-running with
   // IRC_ENABLED=true actually opens + rate-limits the ports — but egress and
   // 80/443 are open regardless, or the API/Caddy stack can't function.
-  const baseAllow = buildBaseAllowRules({ publicIface, webPorts });
+  //
+  // The iface is the shell var $PUBIF, detected at runtime in the helper below —
+  // Vultr images vary (eth0, ens3, enp1s0, …) and hardcoding the wrong name
+  // silently drops all container egress + web ingress. publicIface is the
+  // fallback if detection fails.
+  const baseAllow = buildBaseAllowRules({ publicIface: '$PUBIF', webPorts });
   const defaultDrop = 'iptables -A DOCKER-USER -j DROP';
   const ircRules = buildIrcPortRules(ircPorts, limits);
   const failregex = fail2banFailregex();
@@ -116,6 +121,11 @@ IRC_ENABLED="$(cat /etc/korin/irc_enabled 2>/dev/null || echo false)"
 # Flush first: the chain ships with a default "-j RETURN", so appended DROPs
 # would never be reached otherwise.
 iptables -F DOCKER-USER 2>/dev/null || true
+# Detect the public NIC at runtime (Vultr images vary: eth0, ens3, enp1s0, ...).
+# A hardcoded name that doesn't exist matches nothing, so the default DROP below
+# would silently strangle container egress + web ingress.
+PUBIF="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+PUBIF="\${PUBIF:-${publicIface}}"
 ${baseAllow.join('\n')}
 if [ "$IRC_ENABLED" = "true" ]; then
 ${ircRules.map((r) => '  ' + r).join('\n')}
