@@ -69,8 +69,11 @@ accounts:
 
   # Open lurking: anyone may connect anonymously; registration is only needed to
   # hold a nick / earn IRCScore. Matches the wiki's "no account required to lurk".
-  # (v0.x uses Ergo-NATIVE accounts in Buntdb — Ergo cannot delegate SASL to
-  # stellar-api; nick→Stellar mapping is self-reported via the korin API.)
+  # (v0.x uses Ergo-NATIVE accounts in Buntdb. Ergo *can* delegate SASL via an
+  # auth-script subprocess, but per stellar-api ADR-0013 we deliberately don't:
+  # korin owns IRC identity; nick→Stellar mapping is self-reported via the korin
+  # API. ADR-0011's delegated-SASL design was superseded by ADR-0013 — don't
+  # reopen this without amending that ADR.)
   require-sasl:
     enabled: false
 
