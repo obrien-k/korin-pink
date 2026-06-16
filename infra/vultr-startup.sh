@@ -114,8 +114,7 @@ JAIL
 if [ "$IRC_ENABLED" = "true" ]; then
   cat >/etc/fail2ban/filter.d/ergo.conf <<'FILTER'
 [Definition]
-failregex = ^.*failed login.*?<HOST>
-            ^.*rejecting connection.*?<HOST>
+failregex = ^.*rejecting connection.*?<HOST>
             ^.*too many connections.*?<HOST>
 ignoreregex =
 FILTER
