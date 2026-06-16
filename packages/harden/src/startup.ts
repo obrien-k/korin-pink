@@ -70,8 +70,21 @@ net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_max_syn_backlog = 4096
 net.core.somaxconn = 1024
 net.ipv4.conf.all.rp_filter = 1
+# Swap is headroom for the 1 GB box, not a hot path: prefer RAM, swap late.
+vm.swappiness = 10
 SYSCTL
 sysctl --system
+
+# -- Swap (headroom for the 1 GB box; api + bridge + ergo can spike together) -
+# Idempotent: only provision if /swapfile isn't already active. fallocate first,
+# dd fallback for filesystems where fallocate can't make a swap-eligible file.
+if ! swapon --show=NAME --noheadings 2>/dev/null | grep -q '/swapfile'; then
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+fi
 
 # -- SSH lockdown (key-only) - make sure your key is attached at deploy! ------
 # A sed on /etc/ssh/sshd_config loses to /etc/ssh/sshd_config.d/50-cloud-init.conf
