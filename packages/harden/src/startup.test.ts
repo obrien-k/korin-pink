@@ -62,6 +62,20 @@ test('hardens sshd via a drop-in that outranks cloud-init, not a sed on the main
   assert.doesNotMatch(script, /sed -i .* \/etc\/ssh\/sshd_config\b/, 'drop-in replaces the overridden sed');
 });
 
+test('provisions a swapfile idempotently (1 GB box runs api+bridge+ergo)', () => {
+  const script = buildStartupScript(opts());
+  // Only create the swapfile when it isn't already active, so re-runs are safe.
+  assert.match(script, /swapon --show.*\/swapfile/, 'expected an idempotency guard on /swapfile');
+  assert.match(script, /mkswap \/swapfile/, 'expected mkswap on the swapfile');
+  assert.match(script, /swapon \/swapfile/, 'expected the swapfile to be enabled');
+  // Persisted across reboots via fstab, and only appended once.
+  const swapBlock = script.slice(script.indexOf('/swapfile'));
+  assert.match(swapBlock, /\/etc\/fstab/, 'expected the swapfile persisted to /etc/fstab');
+  assert.match(swapBlock, /grep -q .*\/swapfile .*\/etc\/fstab/, 'fstab entry must be added at most once');
+  // swappiness lives in the sysctl drop-in (low: prefer RAM, swap is headroom).
+  assert.match(script, /vm\.swappiness\s*=\s*10/, 'expected vm.swappiness=10 in the sysctl drop-in');
+});
+
 test('persists DOCKER-USER rules via a oneshot unit ordered after docker, not netfilter-persistent', () => {
   const script = buildStartupScript(opts());
   // netfilter-persistent is gone with its package, so the old save call must go too.

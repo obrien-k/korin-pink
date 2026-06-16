@@ -67,6 +67,17 @@ accounts:
       duration: 10m
       max-attempts: 30
 
+  # Per-IP throttle on FAILED SASL/PASS logins. This is the defense against
+  # oper/account brute-force (issue #19): Ergo logs those failures by session id,
+  # not IP, so fail2ban structurally can't ban them — Ergo's in-process throttle
+  # is the right layer. fail2ban still covers connection-level floods (which do
+  # carry an IP). Ergo's own default (3 / 1m); kept explicit so it can't silently
+  # change under us on an upgrade.
+  login-throttling:
+    enabled: true
+    duration: 1m
+    max-attempts: 3
+
   # Open lurking: anyone may connect anonymously; registration is only needed to
   # hold a nick / earn IRCScore. Matches the wiki's "no account required to lurk".
   # (v0.x uses Ergo-NATIVE accounts in Buntdb. Ergo *can* delegate SASL via an
