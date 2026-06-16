@@ -62,7 +62,9 @@ PermitRootLogin prohibit-password
 SSHD
 systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
 
-# -- DOCKER-USER perimeter (the real filter for published IRC ports) ---------
+# -- DOCKER-USER perimeter (the real filter for all published ports) ---------
+# Allows container egress + inbound 80/443 (Caddy) always; rate-limits the IRC
+# ports when live; drops everything else. Published ports bypass ufw.
 # Docker RECREATES (and empties) the DOCKER-USER chain every daemon start, so the
 # rules must be re-applied on boot. We can't use netfilter-persistent (ufw Breaks
 # its package on noble); instead a oneshot systemd unit ordered After=docker.service
@@ -81,6 +83,9 @@ IRC_ENABLED="$(cat /etc/korin/irc_enabled 2>/dev/null || echo false)"
 # would never be reached otherwise.
 iptables -F DOCKER-USER 2>/dev/null || true
 iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+iptables -A DOCKER-USER -o eth0 -m conntrack --ctstate NEW -j RETURN
+iptables -A DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 -j RETURN
+iptables -A DOCKER-USER -i eth0 -p udp --dport 443 -j RETURN
 if [ "$IRC_ENABLED" = "true" ]; then
   iptables -A DOCKER-USER -p tcp --dport 6697 -m conntrack --ctstate NEW -m hashlimit --hashlimit-name irc6697 --hashlimit-mode srcip --hashlimit-above 30/min --hashlimit-burst 30 -j DROP
   iptables -A DOCKER-USER -p tcp --dport 6697 -m connlimit --connlimit-above 8 --connlimit-mask 32 -j DROP

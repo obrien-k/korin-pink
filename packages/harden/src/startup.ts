@@ -1,4 +1,4 @@
-import { buildFirewallRules, buildIrcPortRules } from './firewall.js';
+import { buildBaseAllowRules, buildIrcPortRules } from './firewall.js';
 import { fail2banFailregex } from './fail2ban.js';
 
 export interface StartupOptions {
@@ -8,6 +8,10 @@ export interface StartupOptions {
   limits: { newConnsPerMinPerIp: number; maxConcurrentPerIp: number };
   /** Path Ergo writes its log to on the box (watched by the fail2ban ergo jail). */
   ergoLog: string;
+  /** Public NIC the box egresses on (Vultr Ubuntu = eth0). Default 'eth0'. */
+  publicIface?: string;
+  /** Inbound web ports the front-door Caddy publishes. Default [80, 443]. */
+  webPorts?: number[];
 }
 
 /**
@@ -16,19 +20,15 @@ export interface StartupOptions {
  * (render.ts) is responsible for writing it to disk.
  */
 export function buildStartupScript(opts: StartupOptions): string {
-  const { ircPorts, limits, ergoLog } = opts;
+  const { ircPorts, limits, ergoLog, publicIface, webPorts } = opts;
 
-  // Framing rules (established RETURN first, default DROP last); the IRC port
-  // rules sit between them but are applied at RUNTIME, gated by $IRC_ENABLED, so
-  // re-running with IRC_ENABLED=true actually opens + rate-limits the ports.
-  const framing = buildFirewallRules({
-    sshAllowCidr: '',
-    ircEnabled: false,
-    ircPorts,
-    ...limits,
-  });
-  const established = framing[0];
-  const defaultDrop = framing[framing.length - 1];
+  // Always-on head of the chain (established RETURN, container egress, inbound
+  // web) followed by the gated IRC rules and a default DROP. The IRC port rules
+  // are applied at RUNTIME, gated by $IRC_ENABLED, so re-running with
+  // IRC_ENABLED=true actually opens + rate-limits the ports — but egress and
+  // 80/443 are open regardless, or the API/Caddy stack can't function.
+  const baseAllow = buildBaseAllowRules({ publicIface, webPorts });
+  const defaultDrop = 'iptables -A DOCKER-USER -j DROP';
   const ircRules = buildIrcPortRules(ircPorts, limits);
   const failregex = fail2banFailregex();
 
@@ -96,7 +96,9 @@ PermitRootLogin prohibit-password
 SSHD
 systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
 
-# -- DOCKER-USER perimeter (the real filter for published IRC ports) ---------
+# -- DOCKER-USER perimeter (the real filter for all published ports) ---------
+# Allows container egress + inbound 80/443 (Caddy) always; rate-limits the IRC
+# ports when live; drops everything else. Published ports bypass ufw.
 # Docker RECREATES (and empties) the DOCKER-USER chain every daemon start, so the
 # rules must be re-applied on boot. We can't use netfilter-persistent (ufw Breaks
 # its package on noble); instead a oneshot systemd unit ordered After=docker.service
@@ -114,7 +116,7 @@ IRC_ENABLED="$(cat /etc/korin/irc_enabled 2>/dev/null || echo false)"
 # Flush first: the chain ships with a default "-j RETURN", so appended DROPs
 # would never be reached otherwise.
 iptables -F DOCKER-USER 2>/dev/null || true
-${established}
+${baseAllow.join('\n')}
 if [ "$IRC_ENABLED" = "true" ]; then
 ${ircRules.map((r) => '  ' + r).join('\n')}
 fi

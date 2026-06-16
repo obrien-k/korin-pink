@@ -11,11 +11,15 @@ const repo = resolve(here, '../../..');
 const IRC_PORTS = [6697, 8097, 6667];
 const LIMITS = { newConnsPerMinPerIp: 30, maxConcurrentPerIp: 8 };
 const ERGO_LOG = '/opt/korin.pink/infra/ergo-data/ergo.log';
+const PUBLIC_IFACE = 'eth0'; // Vultr Ubuntu egress NIC
+const WEB_PORTS = [80, 443]; // front-door Caddy (api.korin.pink)
 
 const startup = buildStartupScript({
   ircPorts: IRC_PORTS,
   limits: LIMITS,
   ergoLog: ERGO_LOG,
+  publicIface: PUBLIC_IFACE,
+  webPorts: WEB_PORTS,
 });
 
 const failregex = fail2banFailregex();
