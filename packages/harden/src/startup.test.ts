@@ -40,6 +40,19 @@ test('frames the DOCKER-USER chain established-RETURN -> IRC gate -> default-DRO
   assert.ok(dropIdx > gateIdx, 'default DROP must close the chain after the gated IRC rules');
 });
 
+test('opens container egress + inbound 80/443 unconditionally, before the IRC gate', () => {
+  const script = buildStartupScript(opts());
+  const gateIdx = script.indexOf('if [ "$IRC_ENABLED" = "true" ]');
+  const egressIdx = script.indexOf('-o eth0 -m conntrack --ctstate NEW -j RETURN');
+  const webIdx = script.indexOf('-i eth0 -p tcp -m multiport --dports 80,443 -j RETURN');
+  assert.ok(egressIdx >= 0, 'expected a container-egress allow in the helper script');
+  assert.ok(webIdx >= 0, 'expected an inbound 80/443 allow in the helper script');
+  // They must be applied always, not gated behind IRC_ENABLED — the API/Caddy
+  // stack needs egress (LE, stellar) and 80/443 whether or not Ergo is live.
+  assert.ok(egressIdx < gateIdx, 'egress allow must precede the IRC gate (always on)');
+  assert.ok(webIdx < gateIdx, 'web allow must precede the IRC gate (always on)');
+});
+
 test('closes the default world-open SSH rule, leaving only the admin-CIDR allow', () => {
   const script = buildStartupScript(opts());
   const lines = script.split('\n');
