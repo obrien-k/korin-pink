@@ -144,10 +144,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: appleboy/ssh-action@v1
+        env:
+          # Shared secrets — each minted by the side that GUARDS the call (the
+          # other repo holds a copy as an Actions secret). See docs/deploy/secrets.md.
+          STELLAR_PULL_KEY:    ${{ secrets.STELLAR_PULL_KEY }}     # S1: korin guards  -> korin mints
+          STELLAR_SERVICE_KEY: ${{ secrets.STELLAR_SERVICE_KEY }}  # S2: stellar guards -> stellar mints
+          # korin-internal secrets.
+          IRC_BRIDGE_SECRET:   ${{ secrets.IRC_BRIDGE_SECRET }}
+          IRC_SASL_USER:       ${{ secrets.IRC_SASL_USER }}
+          IRC_SASL_PASS:       ${{ secrets.IRC_SASL_PASS }}
+          # Non-secret config (repo variables, with defaults).
+          STELLAR_API_URL:     ${{ vars.STELLAR_API_URL }}
+          API_DOMAIN:          ${{ vars.API_DOMAIN || 'api.korin.pink' }}
         with:
           host:     ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER || 'root' }}
           key:      ${{ secrets.VPS_SSH_KEY }}
+          # Forward the env above into the remote shell (kept out of the logged script).
+          envs: STELLAR_PULL_KEY,STELLAR_SERVICE_KEY,IRC_BRIDGE_SECRET,IRC_SASL_USER,IRC_SASL_PASS,STELLAR_API_URL,API_DOMAIN
           script: |
-            cd /opt/korin.pink && git pull origin main
-            cd infra && docker compose pull && docker compose up -d
+            set -euo pipefail
+            cd /opt/korin.pink
+            git pull origin main
+            # Render the box .env from the injected secrets — deploy-managed, never
+            # hand-edited. Note STELLAR_API_KEY (korin's outbound Bearer) is fed by
+            # stellar's STELLAR_SERVICE_KEY: same secret, named per side.
+            umask 077
+            cat > /opt/korin.pink/.env <<EOF
+            DOMAIN=korin.pink
+            STELLAR_API_URL=${STELLAR_API_URL}
+            STELLAR_PULL_KEY=${STELLAR_PULL_KEY}
+            STELLAR_API_KEY=${STELLAR_SERVICE_KEY}
+            IRC_BRIDGE_SECRET=${IRC_BRIDGE_SECRET}
+            IRC_HOST=ergo
+            IRC_PORT=6697
+            IRC_TLS=true
+            IRC_NICK=stellar-bridge
+            IRC_SASL_USER=${IRC_SASL_USER}
+            IRC_SASL_PASS=${IRC_SASL_PASS}
+            KORIN_API_URL=http://api:3000
+            FLUSH_INTERVAL_MS=60000
+            EOF
+            # Bring up the public API behind Caddy (prod overlay). Ergo is managed
+            # separately; the bridge lands with #20 once its Ergo account exists.
+            cd infra
+            API_DOMAIN="${API_DOMAIN}" docker compose \
+              -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d --build api caddy
