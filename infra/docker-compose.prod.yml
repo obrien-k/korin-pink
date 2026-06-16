@@ -1,0 +1,30 @@
+# docker-compose.prod.yml — production overlay for the Vultr box (short-term).
+#
+# Apply as an overlay ON TOP of the universal baseline:
+#
+#   cd infra
+#   API_DOMAIN=api.korin.pink \
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build api caddy
+#
+# (Ergo is already running on the box; api depends_on ergo, so it comes up fine.)
+#
+# What this overlay changes vs the baseline:
+#  - Caddy binds the PUBLIC 80/443 (the base maps 8082/8443 for local dev).
+#    Compose APPENDS port mappings, so 8082/8443 stay published too — but they're
+#    unreachable from the internet because the box's ufw only allows 80/443
+#    (see infra/vultr-startup.sh). No conflict: both host ports forward to the
+#    same container.
+#  - Caddy loads Caddyfile.prod (api.korin.pink → api:3000, auto-TLS) instead of
+#    the path-prefix dev Caddyfile. Same container target → this mount wins.
+#  - API_DOMAIN is required; compose errors out if it's unset.
+
+services:
+  caddy:
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+    environment:
+      - API_DOMAIN=${API_DOMAIN:?set API_DOMAIN, e.g. api.korin.pink}
