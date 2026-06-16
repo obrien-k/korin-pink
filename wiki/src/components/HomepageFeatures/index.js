@@ -4,29 +4,11 @@ import styles from './styles.module.css';
 
 const FeatureList = [
   {
-    title: 'KORIN.WIKI',
+    title: 'IRC.KORIN.WIKI',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
         This wiki. Pronounced, wee-kee.
-      </>
-    ),
-  },
-  {
-    title: 'KORIN.BLACK',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
-    description: (
-      <>
-        Introducing <code>korin.black</code>. 
-      </>
-    ),
-  },
-  {
-    title: 'WUU.BI',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
-    description: (
-      <>
-        What is Wuu.bi?
       </>
     ),
   },
