@@ -96,10 +96,12 @@ accounts:
 channels:
   registration:
     enabled: true
+    # Only opers may register channels. Ergo has no static "reserved channels"
+    # config — the core channels (#announce/#stellar/#korin) are registered at
+    # deploy by the SysOp via ChanServ (see docs/deploy/vps.md). operator-only
+    # keeps the names from being squatted before/after that.
+    operator-only: true
   default-modes: +nt
-
-  # Auto-create core community channels
-  # Operators manage these manually post-deploy
 
 history:
   enabled: true
@@ -143,6 +145,14 @@ datastore:
 
 # Operator accounts (configure post-deploy)
 opers:
+  # Human SysOp: governs the network and registers the core community channels.
+  # Because channels.registration.operator-only is set, channel registration
+  # (and thus #announce/#stellar/#korin) is gated behind an oper login.
+  korin-admin:
+    class: "sysop"
+    # password hash: ergo genpasswd  (this is the /OPER credential; the matching
+    # NickServ account is registered post-deploy — see docs/deploy/vps.md)
+    password: ""  # TODO: set via ergo genpasswd
   stellar-bridge:
     # The irc-bridge bot's operator credentials
     class: "bot"
@@ -150,15 +160,32 @@ opers:
     # password hash: ergo genpasswd
     password: ""  # TODO: set via ergo genpasswd
 
+# Capability tokens below are Ergo's exact names (ergo defaultconfig). Ergo
+# SILENTLY IGNORES unrecognised capabilities, so a typo is a no-op, not an
+# error — packages/irc/test/oper-policy.test.ts guards against that.
 oper-classes:
   "bot":
     title: Bridge Bot
     capabilities:
-      - "oper:local_kill"
-      - "oper:local_ban"
-      - "snomask"
+      - "kill"
+      - "ban"
+      - "snomasks"
       - "roleplay"
       - "relaymsg"
+  "sysop":
+    title: Korin SysOp
+    capabilities:
+      - "kill"        # disconnect sessions
+      - "ban"         # K/D-line, suspend accounts
+      - "nofakelag"   # exempt from fakelag
+      - "vhosts"      # manage vhosts
+      - "sajoin"      # join any channel
+      - "samode"      # set any mode
+      - "snomasks"    # subscribe to server-notice masks
+      - "rehash"      # reload config at runtime
+      - "chanreg"     # manage channel registrations (govern #announce et al.)
+      - "accreg"      # manage account registrations
+      - "history"     # manage/delete history
 
 limits:
   nicklen: 32

@@ -166,12 +166,50 @@ docker compose logs -f
 
 ## 6. Ergo first-run setup
 
+### 6a. Oper passwords
+
+`ergo.yaml` ships two oper accounts with empty passwords — `korin-admin` (the
+human SysOp) and `stellar-bridge` (the irc-bridge bot). Generate a hash for each
+and paste it into the matching `password:` field:
+
 ```bash
-docker compose exec ergo sh
-ergo genpasswd   # for the stellar-bridge oper account
-# update packages/irc/ergo.yaml with the hash
+docker compose exec ergo ergo genpasswd   # run once per oper; paste each hash
+# update packages/irc/ergo.yaml (opers.korin-admin / opers.stellar-bridge)
 # rebuild: docker compose up ergo --build -d
 ```
+
+### 6b. Reserve the core channels (SysOp)
+
+Ergo has no static "reserved channels" config — channels are registered at
+runtime, and `channels.registration.operator-only: true` means **only an oper
+can register them**. So claim the core names once, as the SysOp, before
+announcing the server publicly. Connect with any IRC client over TLS
+(`irc.korin.pink:6697`) and:
+
+```text
+# 1. register the SysOp's NickServ account (this account becomes channel founder)
+/msg NickServ REGISTER <strong-password> you@korin.pink
+
+# 2. oper up with the korin-admin /OPER credential from 6a
+/OPER korin-admin <oper-password>
+
+# 3. register the core channels (operator-only gate now satisfied)
+/msg ChanServ REGISTER #announce
+/msg ChanServ REGISTER #stellar
+/msg ChanServ REGISTER #korin
+
+# 4. let the bridge bot post release announcements to #announce
+#    (grant its account persistent op; the bot SASLs in as stellar-bridge)
+/msg ChanServ AMODE #announce +o stellar-bridge
+
+# 5. (optional) lock topics to ops on the announce channel
+/mode #announce +t
+```
+
+> The `stellar-api` integration contract (ADR-0013) renders release artifacts to
+> **`#announce`** — that channel name is load-bearing, keep it. `#stellar` is
+> project chat; `#korin` is infra/meta. Registering them as the SysOp makes that
+> account their founder, so governance survives restarts.
 
 ## 7. systemd service (optional, recommended)
 
