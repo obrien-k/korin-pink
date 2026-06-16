@@ -8,33 +8,14 @@
  * This client covers the korin→stellar calls only: resolving a nick to its
  * Stellar account, linking a nick, and reading a user's CRS. All are
  * authenticated with the shared service key (Bearer STELLAR_API_KEY).
+ *
+ * Config is INJECTED — importing this module has no side effects and never
+ * throws (it used to throw at import, crashing any test that imported a route).
+ * A missing URL/key fails at CALL time with a clear message. Wired-for-later:
+ * no korin route consumes this yet (ADR-0013 anticipates the nick→account path).
  */
 
-const STELLAR_API_BASE = process.env.STELLAR_API_URL
-const STELLAR_API_KEY  = process.env.STELLAR_API_KEY
-
-if (!STELLAR_API_BASE) throw new Error('STELLAR_API_URL is required')
-if (!STELLAR_API_KEY)  throw new Error('STELLAR_API_KEY is required')
-
-async function stellarFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${STELLAR_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${STELLAR_API_KEY}`,
-      ...init?.headers,
-    },
-  })
-
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`stellar-api ${res.status} @ ${path}: ${body}`)
-  }
-
-  return res.json() as Promise<T>
-}
-
-// ── Types ────────────────────────────────────────────────────────────────────
+import type { Config } from '../config.js'
 
 export interface StellarUser {
   id: number
@@ -42,26 +23,57 @@ export interface StellarUser {
   ircNick?: string | null
 }
 
-// ── API calls (paths per stellar-api ADR-0013 §Integration contract) ──────────
+type StellarConfig = Pick<Config, 'stellarApiUrl' | 'stellarApiKey'>
 
-/** Look up a Stellar user by their registered IRC nick. */
-export async function getUserByNick(nick: string): Promise<StellarUser | null> {
-  try {
-    return await stellarFetch<StellarUser>(`/api/users/by-irc-nick/${encodeURIComponent(nick)}`)
-  } catch {
-    return null
+export interface StellarClient {
+  getUserByNick(nick: string): Promise<StellarUser | null>
+  linkNick(stellarUserId: number, ircNick: string | null): Promise<void>
+  getReputation(stellarUserId: number): Promise<unknown>
+}
+
+/** Build the korin→stellar client from injected config. */
+export function createStellarClient(config: StellarConfig): StellarClient {
+  async function stellarFetch<T>(path: string, init?: RequestInit): Promise<T> {
+    const { stellarApiUrl, stellarApiKey } = config
+    if (!stellarApiUrl || !stellarApiKey) {
+      throw new Error('stellar client not configured (STELLAR_API_URL / STELLAR_API_KEY)')
+    }
+    const res = await fetch(`${stellarApiUrl}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${stellarApiKey}`,
+        ...init?.headers,
+      },
+    })
+
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(`stellar-api ${res.status} @ ${path}: ${body}`)
+    }
+
+    return res.json() as Promise<T>
   }
-}
 
-/** Register / update an IRC nick on a Stellar account. */
-export async function linkNick(stellarUserId: number, ircNick: string | null): Promise<void> {
-  await stellarFetch(`/api/users/${stellarUserId}/irc-nick`, {
-    method: 'PUT',
-    body: JSON.stringify({ ircNick }),
-  })
-}
-
-/** Fetch current CRS for display/context — read-only, not used in scoring. */
-export async function getReputation(stellarUserId: number) {
-  return stellarFetch(`/api/users/${stellarUserId}/reputation`)
+  return {
+    // Look up a Stellar user by their registered IRC nick.
+    async getUserByNick(nick) {
+      try {
+        return await stellarFetch<StellarUser>(`/api/users/by-irc-nick/${encodeURIComponent(nick)}`)
+      } catch {
+        return null
+      }
+    },
+    // Register / update an IRC nick on a Stellar account.
+    async linkNick(stellarUserId, ircNick) {
+      await stellarFetch(`/api/users/${stellarUserId}/irc-nick`, {
+        method: 'PUT',
+        body: JSON.stringify({ ircNick }),
+      })
+    },
+    // Fetch current CRS for display/context — read-only, not used in scoring.
+    getReputation(stellarUserId) {
+      return stellarFetch(`/api/users/${stellarUserId}/reputation`)
+    },
+  }
 }
