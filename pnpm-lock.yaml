@@ -42,6 +42,18 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/irc:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.19.43
+      tsx:
+        specifier: ^4.7.1
+        version: 4.22.4
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   packages/irc-bridge:
     dependencies:
       irc-framework:

@@ -35,6 +35,10 @@ server:
   # Casemapping: use "ascii" for simplicity, "precis" for unicode
   casemapping: "ascii"
 
+  # Required by the WebSocket listener (:8097) — Ergo refuses to start a
+  # websocket listener without it. Pre-emptively discards non-UTF8 messages.
+  enforce-utf8: true
+
   # Max connections
   max-sendq: 96k
   ip-limits:
@@ -72,6 +76,15 @@ accounts:
 
   authentication-enabled: true
 
+  # Required by nick-reservation.force-nick-equals-account below — Ergo refuses
+  # to start with force-nick-equals-account unless multiclient is enabled.
+  # Also gives users optional bouncer-style multi-session attach.
+  multiclient:
+    enabled: true
+    allowed-by-default: true
+    always-on: "opt-in"
+    auto-away: "opt-in"
+
   nick-reservation:
     enabled: true
     additional-nick-limit: 2
@@ -91,24 +104,42 @@ channels:
 history:
   enabled: true
   channel-length: 2048
-  query-cutoff: none
+  # Max messages a client can pull per CHATHISTORY request (0 disables it).
+  # Ergo warns at boot if unset.
+  chathistory-maxmessages: 1000
   retention:
     allow-individual-user-override: true
     default:
       duration: 7d
   persistent:
+    # Backed by SQLite (datastore.sqlite) so channel scrollback survives
+    # restarts. Persistence overrides the in-memory size limits above.
     enabled: true
     unregistered-channels: false
     registered-channels: opt-out
     direct-messages: opt-out
   restrictions:
-    expire-unregistered-accounts: true
-    query-cutoff: 1w
+    # Messages older than this are unretrievable and eventually purged
+    # (matches retention.default.duration). NOTE: this is `expire-time`, a
+    # duration — not `query-cutoff`, which is an enum (see below).
+    expire-time: 1w
+    # How far back history is readable: 'none' (open, fits open-lurking),
+    # 'registration-time', or 'join-time'.
+    query-cutoff: none
 
 datastore:
   path: /var/lib/ergo/ircd.db
   # Buntdb embedded — fine for small-medium communities
   # Migrate to Postgres for scale: https://ergo.chat/postgres
+
+  # Persistent history backend (required when history.persistent is enabled).
+  # Lives next to ircd.db inside the bind-mounted /var/lib/ergo, so scrollback
+  # survives container restarts on the 1 GB box without a separate DB server.
+  sqlite:
+    enabled: true
+    database-path: /var/lib/ergo/ergo_history.db
+    busy-timeout: 5s
+    max-conns: 1
 
 # Operator accounts (configure post-deploy)
 opers:
