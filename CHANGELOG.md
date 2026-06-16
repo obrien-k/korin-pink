@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- `packages/irc/ergo.yaml`: reserved the core community channels — `operator-only`
+  channel registration plus `korin-admin` (human SysOp) and `stellar-bridge`
+  (bridge bot) oper accounts on capability-scoped oper-classes, so
+  `#announce`/`#stellar`/`#korin` can't be squatted before the SysOp claims them
+  (#11).
+- `packages/irc/test`: config + oper-policy tests (oper-class capability
+  vocabulary, dangling-class refs, the operator-only registration gate), a
+  real-binary Ergo boot test against the pinned image, and a Dockerfile
+  launch-invariant test (#10, #11, #13).
+- `infra/docker-compose.yml`: the Docusaurus `wiki` service is now opt-in behind
+  a `wiki` compose profile — default `docker compose up` skips the build (which
+  OOMs a 1 GB VPS; the wiki is served from Cloudflare Pages). `caddy`'s wiki
+  dependency is `required: false`, so it still starts with the profile off
+  (`/wiki/*` 502s, as expected) (#12).
+
 ### Changed
 - `packages/api/src/lib/stellar.ts`: aligned the stellar-api client to the
   ADR-0013 integration contract — removed the orphaned metrics **push** path
@@ -15,6 +31,26 @@
   bidirectional contract (pull metrics / push announce / korin→stellar service
   calls); corrected the payload shape and stale `stellar ADR-0005` references
   (now stellar-api ADR-0013).
+
+### Fixed
+- `packages/irc` (Docker): the Ergo image now actually launches `ergo.yaml`.
+  The base `ghcr.io/ergochat/ergo` ENTRYPOINT wrapper (`/ircd-bin/run.sh`) booted
+  *stock* Ergo — default `ircd.yaml`, a generated `admin` oper, self-signed certs
+  — and swallowed our plain `CMD`, so none of our config loaded. Override the
+  wrapper and invoke `ergo run --conf /etc/ergo.yaml` directly (#13).
+- `packages/harden`: corrected three Ubuntu 24.04 boot-script bugs — dropped
+  `iptables-persistent`/`netfilter-persistent` (ufw `Breaks` them on noble) for a
+  `korin-docker-user.service` systemd oneshot that replays the `DOCKER-USER` chain
+  after Docker recreates it each boot; write an sshd drop-in
+  (`00-korin-harden.conf`) so password-auth-off outranks cloud-init; delete the
+  default world-open `22/tcp` ufw rule (#9).
+- `packages/irc/ergo.yaml`: config corrections so it boots cleanly in the pinned
+  Ergo image (#10).
+- Docs (`docs/deploy/vps.md`, `self-host.md`): copy **real** cert files into
+  `infra/tls` (symlinks into `/etc/letsencrypt` dangle inside the container),
+  issue the cert with a single `certbot certonly` + renewal deploy-hook, keep the
+  private key at `600`, bypass the image wrapper for `genpasswd`, and document the
+  `--profile wiki` opt-in (#13, #14).
 
 ## [v0.1.1] - 2026-06-14
 
