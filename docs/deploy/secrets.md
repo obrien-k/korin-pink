@@ -55,6 +55,18 @@ gh variable set STELLAR_API_URL -R obrien-k/korin-pink -b'https://<stellar-api-p
 The stellar side also needs `KORIN_API_URL=https://api.korin.pink` in its deploy
 env (it points the metrics-pull / announce-push jobs at korin).
 
+## Running a deploy
+
+The workflow (`.github/workflows/deploy.yml`) is **manual-dispatch only** — it
+never fires on push. Once the secrets/vars above are set:
+
+```bash
+gh workflow run deploy.yml -R obrien-k/korin-pink -f target=vps
+```
+
+or **Actions → deploy → Run workflow → target: vps**. It renders the box `.env`
+from the secrets and brings the API up behind Caddy.
+
 ## Verify (after both pipelines have deployed)
 
 ```bash

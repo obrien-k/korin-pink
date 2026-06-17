@@ -1,21 +1,31 @@
 name: deploy
 
+# Deploys the api / irc-bridge / ergo stack. MANUAL-DISPATCH ONLY: a prod deploy
+# never fires automatically — trigger it from the Actions tab and pick a target.
+# Dormant until then (no push trigger), so it can't ship a bad merge to the box.
+#
+# The deploy-vps job renders the box .env from Actions secrets (see
+# docs/deploy/secrets.md) — the box .env is deploy-managed, never hand-edited.
+#
+# Required secrets/vars per target are referenced inline below; the VPS target
+# needs: VPS_HOST, VPS_SSH_KEY, STELLAR_PULL_KEY, STELLAR_SERVICE_KEY,
+# IRC_BRIDGE_SECRET, IRC_SASL_USER, IRC_SASL_PASS (secrets) + STELLAR_API_URL,
+# API_DOMAIN (vars).
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       target:
         description: 'Deploy target'
         required: true
         type: choice
-        options: [gcp, aws, vps]
+        options: [vps, gcp, aws]
 
 jobs:
 
   # ── Build images (platform-agnostic) ───────────────────────────────────────
-  # Set DEPLOY_TARGET repo variable to: gcp | aws | vps
-  # Images go to: GCP Artifact Registry | AWS ECR | GHCR
+  # Target comes from the workflow_dispatch `target` input (vps | gcp | aws).
+  # Images go to: GHCR (vps) | GCP Artifact Registry | AWS ECR.
 
   build:
     name: build & push images
@@ -33,7 +43,7 @@ jobs:
 
       - name: resolve target
         id: target
-        run: echo "val=${{ vars.DEPLOY_TARGET || github.event.inputs.target }}" >> $GITHUB_OUTPUT
+        run: echo "val=${{ github.event.inputs.target }}" >> $GITHUB_OUTPUT
 
       # GCP
       - if: steps.target.outputs.val == 'gcp'
@@ -96,7 +106,7 @@ jobs:
   # ── Deploy: GCP ────────────────────────────────────────────────────────────
   deploy-gcp:
     needs: build
-    if: vars.DEPLOY_TARGET == 'gcp' || github.event.inputs.target == 'gcp'
+    if: github.event.inputs.target == 'gcp'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -122,7 +132,7 @@ jobs:
   # ── Deploy: AWS ────────────────────────────────────────────────────────────
   deploy-aws:
     needs: build
-    if: vars.DEPLOY_TARGET == 'aws' || github.event.inputs.target == 'aws'
+    if: github.event.inputs.target == 'aws'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -139,7 +149,7 @@ jobs:
   # ── Deploy: VPS ────────────────────────────────────────────────────────────
   deploy-vps:
     needs: build
-    if: vars.DEPLOY_TARGET == 'vps' || github.event.inputs.target == 'vps'
+    if: github.event.inputs.target == 'vps'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
