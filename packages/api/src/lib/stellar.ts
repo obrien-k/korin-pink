@@ -25,10 +25,16 @@ export interface StellarUser {
 
 type StellarConfig = Pick<Config, 'stellarApiUrl' | 'stellarApiKey'>
 
+export interface VerifyNickResult {
+  verified: boolean
+  reason?: string
+}
+
 export interface StellarClient {
   getUserByNick(nick: string): Promise<StellarUser | null>
   linkNick(stellarUserId: number, ircNick: string | null): Promise<void>
   getReputation(stellarUserId: number): Promise<unknown>
+  verifyNick(nick: string, code: string): Promise<VerifyNickResult>
 }
 
 /** Build the korin→stellar client from injected config. */
@@ -74,6 +80,17 @@ export function createStellarClient(config: StellarConfig): StellarClient {
     // Fetch current CRS for display/context — read-only, not used in scoring.
     getReputation(stellarUserId) {
       return stellarFetch(`/api/users/${stellarUserId}/reputation`)
+    },
+    // Complete a Nick Verification (stellar-api ADR-0015). `nick` MUST be the
+    // authenticated IRC sender — stellar relies on korin reporting the true
+    // sender; that (nick, code) binding is the security boundary. stellar always
+    // 200s with the result, so this resolves to { verified, reason? } rather than
+    // throwing on a failed verification (it throws only on transport/auth errors).
+    async verifyNick(nick, code) {
+      return stellarFetch<VerifyNickResult>(`/api/users/irc-nick/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ nick, code }),
+      })
     },
   }
 }

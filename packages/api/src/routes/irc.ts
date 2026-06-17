@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireSharedSecret } from '../lib/auth.js';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
 import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
+import { createStellarClient } from '../lib/stellar.js';
 
 // ---------------------------------------------------------------------------
 // IRC metrics — shared types
@@ -41,6 +42,13 @@ const MetricsFlushSchema = z.object({
       windowEnd: z.number().int().positive(),
     })
   ),
+});
+
+// Nick Verification relay (stellar-api ADR-0015). The bridge forwards the
+// authenticated IRC sender nick + the code it received over a private query.
+export const VerifyRelaySchema = z.object({
+  nick: z.string().min(1),
+  code: z.string().min(1),
 });
 
 const InboundFeedSchema = z.object({
@@ -128,6 +136,31 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
     preHandler: requireSharedSecret('x-pull-key', app.config.stellarPullKey),
   }, async (_request, reply) => {
     return reply.send({ users: metricsStore, lastFlushAt });
+  });
+
+  // POST /irc/verify — the bridge relays a "!verify <code>" it saw in a private
+  // query. korin is a stateless pass-through to stellar (ADR-0015); stellar owns
+  // the (nick, code) match and the promotion to the Verified IRC Link. `nick` is
+  // the authenticated IRC sender — the binding that makes the code unstealable.
+  app.post('/irc/verify', {
+    preHandler: requireSharedSecret('x-bridge-secret', app.config.ircBridgeSecret),
+  }, async (request, reply) => {
+    const result = VerifyRelaySchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ error: 'Validation failed', details: result.error.format() });
+    }
+
+    const stellar = createStellarClient(app.config);
+    try {
+      const outcome = await stellar.verifyNick(result.data.nick, result.data.code);
+      return reply.send(outcome);
+    } catch (err: unknown) {
+      // Transport/auth failure — stellar never saw it, so the code is NOT consumed
+      // (ADR-0015: a relay error leaves the still-valid code usable on retry).
+      const message = err instanceof Error ? err.message : 'stellar verify call failed';
+      request.log.warn({ err: message }, 'irc/verify relay to stellar failed');
+      return reply.status(502).send({ verified: false, reason: 'Verification service unavailable, try again' });
+    }
   });
 }
 

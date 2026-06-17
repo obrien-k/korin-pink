@@ -1,4 +1,10 @@
 import { Client } from 'irc-framework';
+import {
+  parseVerifyCommand,
+  formatVerifyReply,
+  VERIFY_UNAVAILABLE,
+  type VerifyOutcome,
+} from './verify.js';
 
 // ---------------------------------------------------------------------------
 // Config — all from env, sane defaults for local dev
@@ -158,10 +164,47 @@ client.on('nick', (event: { nick: string; new_nick: string }) => {
 
 client.on('privmsg', (event: { nick: string; target: string; message: string }) => {
   if (event.nick === IRC_NICK) return;
+
+  // ADR-0015: a private "!verify <code>" to the bot is a control-plane command,
+  // not IRCScore activity. Only honoured in a private query (target is the bot),
+  // never a channel — so a code is never leaked into a channel.
+  if (event.target === IRC_NICK) {
+    const code = parseVerifyCommand(event.message);
+    if (code) {
+      void handleVerify(event.nick, code);
+      return;
+    }
+  }
+
   const u = getOrCreate(event.nick);
   u.messageCount++;
   if (event.target.startsWith('#')) u.channels.add(event.target);
 });
+
+// Relay a verify command to korin (which proxies to stellar) and whisper the
+// outcome back privately. korin owns the (nick, code) match; the bridge only
+// reports the authenticated sender nick.
+async function handleVerify(fromNick: string, code: string): Promise<void> {
+  try {
+    const res = await fetch(`${KORIN_API_URL}/irc/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bridge-secret': IRC_BRIDGE_SECRET,
+      },
+      body: JSON.stringify({ nick: fromNick, code }),
+    });
+    if (!res.ok) {
+      client.say(fromNick, VERIFY_UNAVAILABLE);
+      return;
+    }
+    const outcome = (await res.json()) as VerifyOutcome;
+    client.say(fromNick, formatVerifyReply(fromNick, outcome));
+  } catch (err) {
+    console.error('[bridge] verify relay error:', err);
+    client.say(fromNick, VERIFY_UNAVAILABLE);
+  }
+}
 
 client.on('wholist', (event: { users: Array<{ nick: string; channel: string }> }) => {
   for (const entry of event.users) {

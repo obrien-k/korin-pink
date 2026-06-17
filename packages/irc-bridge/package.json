@@ -4,7 +4,8 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
     "irc-framework": "^4.14.0"
