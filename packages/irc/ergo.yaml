@@ -16,12 +16,29 @@ server:
       tls:
         cert: /etc/ergo/tls/fullchain.pem
         key:  /etc/ergo/tls/privkey.pem
-    # IRC over WebSocket (TLS) — for web clients
+    # IRC over WebSocket (TLS) — direct endpoint for the gamja web client in prod
+    # (Cloudflare Pages is static and can't proxy a WebSocket, so the browser
+    # connects straight here). Firewall-exposed (packages/harden: 6697/8097/6667).
     ":8097":
       websocket: true
       tls:
         cert: /etc/ergo/tls/fullchain.pem
         key:  /etc/ergo/tls/privkey.pem
+    # IRC over WebSocket (plain) — INTERNAL ONLY, for the dev Caddy /socket
+    # reverse-proxy (edge TLS terminated by Caddy). NOT firewall-exposed, so it's
+    # reachable only on the internal korin network, never the public iface.
+    ":8098":
+      websocket: true
+
+  # Browser Origins allowed to open WebSocket connections (the gamja web client).
+  # Prod: gamja is served from the portal origin and connects to :8097.
+  # Dev: gamja connects via the Caddy /socket proxy from the dev portal origin.
+  websockets:
+    allowed-origins:
+      - "https://korin.pink"
+      - "https://www.korin.pink"
+      - "http://localhost:8082"
+      - "https://localhost:8443"
 
   # STS (Strict Transport Security) — force TLS
   sts:
@@ -35,7 +52,7 @@ server:
   # Casemapping: use "ascii" for simplicity, "precis" for unicode
   casemapping: "ascii"
 
-  # Required by the WebSocket listener (:8097) — Ergo refuses to start a
+  # Required by the WebSocket listeners (:8097/:8098) — Ergo refuses to start a
   # websocket listener without it. Pre-emptively discards non-UTF8 messages.
   enforce-utf8: true
 

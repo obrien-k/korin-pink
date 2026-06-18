@@ -17,7 +17,19 @@
         reverse_proxy wiki:80
     }
 
-    # Static portal — the front door. Serves everything else.
+    # Chat — the gamja web IRC client (static, built into packages/web/chat by
+    # packages/chat/build.sh). Its assets are served by the catch-all below; this
+    # only normalises /chat → /chat/.
+    redir /chat /chat/
+
+    # IRC-over-WebSocket for the gamja client (dev config.json: server.url
+    # "/socket"). Reverse-proxied to Ergo's internal plain-ws listener; Caddy
+    # terminates TLS at the edge and auto-upgrades the WebSocket.
+    handle /socket {
+        reverse_proxy ergo:8098
+    }
+
+    # Static portal — the front door. Serves everything else (incl. /chat/).
     handle {
         root * /srv/web
         rewrite /irc/feed.xml /feed.xml

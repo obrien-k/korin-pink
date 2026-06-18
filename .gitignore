@@ -7,6 +7,8 @@ build/
 .turbo/
 # Wiki build output compiled into the portal at deploy time (Cloudflare Pages / CI)
 packages/web/wiki/
+# gamja web client build output, compiled into the portal at deploy time
+packages/web/chat/
 *.log
 infra/tls/
 infra/secrets/

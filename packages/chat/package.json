@@ -1,0 +1,10 @@
+{
+  "name": "@korin/chat",
+  "private": true,
+  "version": "0.0.0",
+  "description": "gamja web IRC client, built from source into the static portal at /chat/",
+  "scripts": {
+    "build": "./build.sh",
+    "build:dev": "CHAT_ENV=dev ./build.sh"
+  }
+}
