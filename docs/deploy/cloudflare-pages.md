@@ -46,13 +46,14 @@ the project.
    - **Production branch:** `main`
    - **Framework preset:** **None** (the portal is hand-built static HTML; we
      supply our own build command for the wiki, so there's nothing to detect)
-   - **Build command:**
+   - **Build command:** (builds the wiki into `/wiki/` and the gamja web client
+     into `/chat/`, both inside the portal bundle)
      ```
-     cd wiki && npm ci && npm run build && rm -rf ../packages/web/wiki && cp -r build ../packages/web/wiki
+     cd wiki && npm ci && npm run build && rm -rf ../packages/web/wiki && cp -r build ../packages/web/wiki && cd ../packages/chat && ./build.sh
      ```
    - **Build output directory:** `packages/web`
 4. **Save and Deploy.** Cloudflare builds a `*.pages.dev` preview URL. Confirm
-   both the portal (`/`) and the wiki (`/wiki/`) render there.
+   the portal (`/`), the wiki (`/wiki/`), and the chat client (`/chat/`) render there.
 
 Every push to `main` that touches `packages/web/` now redeploys automatically.
 

@@ -49,6 +49,13 @@ jobs:
           rm -rf ../packages/web/wiki
           cp -r build ../packages/web/wiki
 
+      # Build the gamja web IRC client into the portal so /chat/ ships in the same
+      # bundle (clones + Parcel-builds gamja; see packages/chat/build.sh).
+      - name: Build gamja web client into portal (/chat)
+        run: |
+          cd packages/chat
+          ./build.sh
+
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:

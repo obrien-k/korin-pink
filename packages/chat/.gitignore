@@ -1,0 +1,2 @@
+# Cloned gamja source + its build artifacts (transient; rebuilt by build.sh).
+.gamja-src/

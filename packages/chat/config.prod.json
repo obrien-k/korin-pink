@@ -1,0 +1,7 @@
+{
+  "server": {
+    "url": "wss://irc.korin.pink:8097",
+    "autojoin": "#korin",
+    "auth": "optional"
+  }
+}
