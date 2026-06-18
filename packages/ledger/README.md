@@ -9,7 +9,7 @@ bounded loss (model from `docs/adr/003-irc-bridge-state.md`).
 
 ## Pattern
 
-The legacy threaded-tracker shape, expressed in Go:
+A threaded accounting service, expressed in Go:
 
 - **net/http** goroutine-per-request server (`/healthz` for now).
 - buffered **channel** → a single **batched-flush goroutine** (replaces lock-guarded flush queues).
@@ -39,5 +39,5 @@ curl localhost:3001/healthz
 **Phase 0 skeleton.** Config + server + the store/flush pattern + graceful
 shutdown. Phase 1 ports the IRC metrics flush onto this core; Phase 2 adds the
 `POST /consumption` ingestion endpoint and the real stellar-api flush once those
-contracts land. Nomenclature is domain-only (consumption, Contribution,
-`canConsume`, Effective Availability, Freepass) — never legacy/tracker terms.
+contracts land. The service speaks the platform's domain language: consumption,
+Contribution, `canConsume`, Effective Availability, Freepass / Neutralpass.

@@ -66,9 +66,10 @@ already built and deployed.
    multi-stage `Dockerfile`, and a compose service on the `korin` network.
    Internal-only at first (a `/healthz`; no public Caddy route until the
    consumption-event contract lands).
-5. **Domain nomenclature only.** `contribution_list`, **consumption**, the **Ratio
-   Mechanism** gate (`canConsume`), **Effective Availability** / `linkStatus`,
-   **AnnounceKey**, **Freepass**. No legacy/tracker vocabulary in code or docs.
+5. **Domain nomenclature.** The service speaks the platform's domain language end
+   to end: `contribution_list`, **consumption**, the **Ratio Mechanism** gate
+   (`canConsume`), **Effective Availability** / `linkStatus`, **AnnounceKey**,
+   **Freepass** / **Neutralpass**.
 6. **Stellar stays the system of record.** `ledger` holds only **recoverable** hot
    state and flushes summaries; an unflushed window is bounded loss, not corruption
    (same model as `docs/adr/003-irc-bridge-state.md`).
@@ -101,8 +102,9 @@ already built and deployed.
 - **Phase 2 dependency:** stellar-api must expose **consumption-event** and
   **ratio-gate** contracts (extending stellar-api ADR-0013) before real accounting
   lands — the gating cross-repo work.
-- **Freepass** (no-ratio-cost consumption) and **stem / multi-contributor credit
-  attribution** are deferred economy/design layers, not v0.x.
+- **Freepass / Neutralpass** (ratio-exempt consumption — Freepass still credits the
+  contributor, Neutralpass credits neither side) and **stem / multi-contributor
+  credit attribution** are deferred economy/design layers, not v0.x.
 - Supersedes nothing; **extends** `docs/adr/001-ergo-irc-daemon.md` (Go in the
   stack) and **stellar-api ADR-0013** (the boundary). Phasing is tracked in the
   orchestrator's working roadmap.
