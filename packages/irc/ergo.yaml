@@ -194,20 +194,23 @@ datastore:
 
 # Operator accounts (configure post-deploy)
 opers:
-  # Human SysOp: governs the network and registers the core community channels.
-  # Because channels.registration.operator-only is set, channel registration
-  # (and thus #announce/#stellar/#korin) is gated behind an oper login.
-  korin-admin:
-    class: "sysop"
-    # password hash: ergo genpasswd  (this is the /OPER credential; the matching
-    # NickServ account is registered post-deploy — see docs/deploy/vps.md)
-    password: ""  # TODO: set via ergo genpasswd
-  stellar-bridge:
-    # The irc-bridge bot's operator credentials
-    class: "bot"
-    hidden: true
-    # password hash: ergo genpasswd
-    password: ""  # TODO: set via ergo genpasswd
+  # Opers are DISABLED by default so the shipped config BOOTS without secrets:
+  # Ergo refuses to start an oper that has neither a password nor a fingerprint,
+  # and committing password hashes to this (soon-public) repo is not acceptable.
+  #
+  # To enable: generate a hash with `ergo genpasswd`, then uncomment a block below
+  # and paste it (or inject via ERGO__OPERS__... env at deploy time). Until an oper
+  # exists, channels.registration.operator-only means the core channels
+  # (#announce/#stellar/#korin) can't be registered and the irc-bridge bot can't
+  # /OPER — both are post-deploy steps (see docs/deploy/vps.md).
+  #
+  # korin-admin:          # Human SysOp — governs the network, registers channels
+  #   class: "sysop"
+  #   password: "<ergo genpasswd>"
+  # stellar-bridge:       # irc-bridge bot operator credentials
+  #   class: "bot"
+  #   hidden: true
+  #   password: "<ergo genpasswd>"
 
 # Capability tokens below are Ergo's exact names (ergo defaultconfig). Ergo
 # SILENTLY IGNORES unrecognised capabilities, so a typo is a no-op, not an
