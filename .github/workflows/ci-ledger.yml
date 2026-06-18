@@ -1,0 +1,52 @@
+name: ci-ledger
+
+# Gates the Go toolchain for the ledger accounting service (ADR-004). Runs only
+# when packages/ledger or this workflow changes, so the pnpm-centric repo isn't
+# slowed by a Go job on unrelated edits. gofmt + vet + build + test, mirroring
+# the local commit checks (go build/vet/gofmt clean).
+
+on:
+  push:
+    paths:
+      - 'packages/ledger/**'
+      - '.github/workflows/ci-ledger.yml'
+  pull_request:
+    paths:
+      - 'packages/ledger/**'
+      - '.github/workflows/ci-ledger.yml'
+
+defaults:
+  run:
+    working-directory: packages/ledger
+
+jobs:
+  ledger:
+    name: build / vet / test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/ledger/go.mod
+          cache: false   # stdlib-only package, no go.sum — nothing to cache
+
+      - name: gofmt (must be clean)
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
