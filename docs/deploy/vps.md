@@ -180,23 +180,43 @@ docker compose logs -f
 
 ## 6. Ergo first-run setup
 
-### 6a. Oper passwords
+### 6a. Oper passwords (box-local config)
 
-`ergo.yaml` ships two oper accounts with empty passwords — `korin-admin` (the
-human SysOp) and `stellar-bridge` (the irc-bridge bot). Generate a hash for each
-and paste it into the matching `password:` field:
+`packages/irc/ergo.yaml` is a **template**: it defines the `korin-admin` (human
+SysOp) and `stellar-bridge` (irc-bridge bot) opers with **empty** passwords, so no
+secret is ever committed. The real bcrypt hashes live in a **box-local** copy that
+is mounted over the baked template at runtime (`ERGO_CONF`) — never committed.
 
-`genpasswd` is interactive: it prompts for a plaintext password you choose and
-prints a bcrypt hash (`$2a$...`). The **hash** goes in `ergo.yaml`; the
-**plaintext** is what you type at `/OPER` later. Run it once per oper:
+1. Create the box-local config (git-ignored) from the template:
 
-```bash
-# --entrypoint bypasses the image's run.sh wrapper (which isn't on PATH)
-docker compose run --rm --entrypoint /ircd-bin/ergo ergo genpasswd
-# update packages/irc/ergo.yaml (opers.korin-admin.password / opers.stellar-bridge.password)
-# config is baked at build time, so rebuild after editing:
-docker compose up ergo --build -d
-```
+   ```bash
+   cp packages/irc/ergo.yaml infra/ergo.local.yaml
+   ```
+
+2. Generate a bcrypt hash for each oper. `genpasswd` is interactive: it prompts for
+   a plaintext you choose and prints a hash (`$2a$...`). The **hash** goes in the
+   config; the **plaintext** is what you type at `/OPER` later.
+
+   ```bash
+   # --entrypoint bypasses the image's run.sh wrapper (which isn't on PATH)
+   docker compose run --rm --entrypoint /ircd-bin/ergo ergo genpasswd
+   ```
+
+3. Paste each hash into the matching `password:` field in **`infra/ergo.local.yaml`**
+   (`opers.korin-admin.password` / `opers.stellar-bridge.password`) — NOT the tracked
+   `packages/irc/ergo.yaml`.
+
+4. Point the mount at it and (re)start Ergo — no rebuild needed, the config is now
+   mounted, not baked:
+
+   ```bash
+   grep -q '^ERGO_CONF=' .env || echo 'ERGO_CONF=./ergo.local.yaml' >> .env
+   docker compose up ergo -d
+   ```
+
+> When `packages/irc/ergo.yaml` changes upstream (new listener, `allowed-origins`,
+> etc.), re-apply those edits to `infra/ergo.local.yaml` — the box-local copy does
+> not auto-track the template.
 
 ### 6b. Reserve the core channels (SysOp)
 

@@ -17,6 +17,12 @@ services:
       # Bind-mount (not a named volume) so fail2ban can read ergo.log on the host.
       - ./ergo-data:/var/lib/ergo
       - ${TLS_DIR:-./tls}:/etc/ergo/tls:ro
+      # Box-local config (real oper hashes from `ergo genpasswd`) mounted OVER the
+      # baked template. Default re-mounts the committed template, whose opers have
+      # empty passwords and WON'T boot — point ERGO_CONF at infra/ergo.local.yaml
+      # (git-ignored) on a real deploy. Same "provide it on the box" pattern as
+      # the TLS certs above. See docs/deploy/vps.md.
+      - ${ERGO_CONF:-../packages/irc/ergo.yaml}:/etc/ergo.yaml:ro
     restart: unless-stopped
     networks: [korin]
 
