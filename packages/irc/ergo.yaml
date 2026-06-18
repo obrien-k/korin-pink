@@ -85,6 +85,13 @@ accounts:
   # korin owns IRC identity; nick→Stellar mapping is self-reported via the korin
   # API. ADR-0011's delegated-SASL design was superseded by ADR-0013 — don't
   # reopen this without amending that ADR.)
+  #
+  # Nick ownership IS verified, but NOT via SASL delegation (stellar-api ADR-0015):
+  # a member proves control by sending `!verify <code>` from the claimed nick in a
+  # private query to the stellar-bridge bot, which relays it to stellar. The proof
+  # rests on force-nick-equals-account below — only the nick's owner can send as it.
+  # That's why we still don't need an auth-script: verification is a bridge PRIVMSG,
+  # not a login callback.
   require-sasl:
     enabled: false
 

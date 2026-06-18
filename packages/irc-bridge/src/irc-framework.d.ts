@@ -29,6 +29,8 @@ declare module 'irc-framework' {
     on(event: string, handler: (event: any) => void): this;
     /** Send a raw IRC line. */
     raw(...args: string[]): void;
+    /** Send a PRIVMSG to a target (nick or channel). */
+    say(target: string, message: string): void;
     /** Disconnect with an optional QUIT message. */
     quit(message?: string): void;
   }
