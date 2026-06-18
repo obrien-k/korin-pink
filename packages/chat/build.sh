@@ -14,12 +14,16 @@
 #   ./build.sh                 # prod config (default; Cloudflare Pages / CI)
 #   CHAT_ENV=dev ./build.sh    # dev config (self-hosted Caddy stack)
 #
-# Reproducibility: pin GAMJA_REF to a commit SHA. The script prints the resolved
-# SHA after cloning so you can pin it here / via the environment.
+# Supply chain: GAMJA_REF is PINNED to a reviewed release tag and the resolved
+# commit is verified against GAMJA_SHA — a tag move or upstream compromise aborts
+# the build. Bump both together after reviewing the new gamja release. npm install
+# scripts are disabled (--ignore-scripts) so a transitive postinstall can't run
+# arbitrary code in CI.
 set -euo pipefail
 
 GAMJA_REPO="${GAMJA_REPO:-https://github.com/Libera-Chat/gamja.git}"
-GAMJA_REF="${GAMJA_REF:-master}"   # TODO: pin to the SHA printed below
+GAMJA_REF="${GAMJA_REF:-v1.0.0-beta.8}"                               # pinned tag
+GAMJA_SHA="${GAMJA_SHA:-fd63c169ed3dd3daa010dcc97413cfd6793ba4f6}"   # expected commit
 CHAT_ENV="${CHAT_ENV:-prod}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -33,13 +37,20 @@ fi
 
 echo "==> Cloning gamja ($GAMJA_REF) from $GAMJA_REPO"
 rm -rf "$work"
-# --branch works for a branch/tag; fall back to a full clone if GAMJA_REF is a SHA.
+# --branch works for a tag/branch; fall back to a full clone if GAMJA_REF is a SHA.
 git clone --depth 1 --branch "$GAMJA_REF" "$GAMJA_REPO" "$work" 2>/dev/null \
   || { git clone "$GAMJA_REPO" "$work" && git -C "$work" checkout "$GAMJA_REF"; }
-echo "==> gamja resolved to commit: $(git -C "$work" rev-parse HEAD)"
 
-echo "==> Installing + building (Parcel, public-url /chat/)"
-( cd "$work" && npm ci && npm run build -- --public-url /chat/ )
+resolved="$(git -C "$work" rev-parse HEAD)"
+echo "==> gamja resolved to commit: $resolved"
+if [ -n "$GAMJA_SHA" ] && [ "$resolved" != "$GAMJA_SHA" ]; then
+  echo "error: gamja commit $resolved != expected $GAMJA_SHA — refusing to build." >&2
+  echo "       (bump GAMJA_REF + GAMJA_SHA together after reviewing the new release)" >&2
+  exit 1
+fi
+
+echo "==> Installing + building (Parcel, public-url /chat/, install scripts disabled)"
+( cd "$work" && npm ci --ignore-scripts && npm run build -- --public-url /chat/ )
 
 echo "==> Publishing build → $portal_chat"
 rm -rf "$portal_chat"

@@ -40,6 +40,17 @@ server:
       - "http://localhost:8082"
       - "https://localhost:8443"
 
+  # Trust the internal reverse proxy (Caddy) to forward the real client IP via
+  # X-Forwarded-For on the :8098 websocket, so login-throttling and ip-limits key
+  # on the actual client rather than the proxy's single IP. Scoped to private /
+  # docker-bridge ranges: :8098 is internal-only (never firewall-exposed) and the
+  # public :8097 endpoint is unproxied (direct), so it sees real IPs already.
+  proxy-allowed-from:
+    - localhost
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+
   # STS (Strict Transport Security) — force TLS
   sts:
     enabled: true
