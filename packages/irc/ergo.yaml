@@ -194,23 +194,26 @@ datastore:
 
 # Operator accounts (configure post-deploy)
 opers:
-  # Opers are DISABLED by default so the shipped config BOOTS without secrets:
-  # Ergo refuses to start an oper that has neither a password nor a fingerprint,
-  # and committing password hashes to this (soon-public) repo is not acceptable.
+  # Opers are DEFINED here but ship with EMPTY passwords — no secret in the repo.
+  # Ergo won't boot an oper that has neither a password nor a fingerprint, so the
+  # real bcrypt hashes (from `ergo genpasswd`) live ONLY in the box-local config
+  # that is mounted over this file at runtime: infra/ergo.local.yaml (git-ignored),
+  # via the ERGO_CONF mount in infra/docker-compose.yml. See docs/deploy/vps.md.
+  # The boot test (test/ergo-config.test.ts) injects a placeholder hash so CI can
+  # validate this config as-is; oper-policy.test.ts checks the SysOp invariant.
   #
-  # To enable: generate a hash with `ergo genpasswd`, then uncomment a block below
-  # and paste it (or inject via ERGO__OPERS__... env at deploy time). Until an oper
-  # exists, channels.registration.operator-only means the core channels
-  # (#announce/#stellar/#korin) can't be registered and the irc-bridge bot can't
-  # /OPER — both are post-deploy steps (see docs/deploy/vps.md).
-  #
-  # korin-admin:          # Human SysOp — governs the network, registers channels
-  #   class: "sysop"
-  #   password: "<ergo genpasswd>"
-  # stellar-bridge:       # irc-bridge bot operator credentials
-  #   class: "bot"
-  #   hidden: true
-  #   password: "<ergo genpasswd>"
+  # Human SysOp: governs the network and registers the core community channels.
+  # Because channels.registration.operator-only is set, channel registration
+  # (and thus #announce/#stellar/#korin) is gated behind an oper login.
+  korin-admin:
+    class: "sysop"
+    # /OPER credential; matching NickServ account registered post-deploy (vps.md)
+    password: ""  # set the real hash in the box-local mounted config (ergo genpasswd)
+  stellar-bridge:
+    # The irc-bridge bot's operator credentials
+    class: "bot"
+    hidden: true
+    password: ""  # set the real hash in the box-local mounted config (ergo genpasswd)
 
 # Capability tokens below are Ergo's exact names (ergo defaultconfig). Ergo
 # SILENTLY IGNORES unrecognised capabilities, so a typo is a no-op, not an

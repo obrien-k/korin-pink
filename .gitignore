@@ -13,4 +13,7 @@ packages/web/chat/
 infra/tls/
 infra/secrets/
 infra/ergo-data/
+# Box-local Ergo config with real oper hashes, mounted over the baked template
+# (ERGO_CONF) — never commit. The committed template is packages/irc/ergo.yaml.
+infra/ergo.local.yaml
 .DS_Store
