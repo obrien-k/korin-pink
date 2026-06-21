@@ -16,15 +16,15 @@ Current project and domain context for `obrien-k/korin-pink`.
 - korin API (`packages/api/src/routes/irc.ts`):
   - `POST /irc/metrics` — bridge push, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`
   - `GET /irc/metrics` — stellar-api pull, auth: `x-pull-key: STELLAR_PULL_KEY`
+  - `POST /irc/verify` — bridge relays a member's `!verify <code>`, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`; proxies to `stellar.verifyNick` → stellar-api `POST /api/users/irc-nick/verify` (ADR-0015)
   - In-process store; no DB dependency for metrics
 - stellar-api `feat/korin-pink`: `User.ircNick`, `PUT /users/:id/irc-nick`, `ircJob.ts` (polls every 5min), IRCScore in CRS REGISTRY
 
 **Immediate next steps:**
-1. `cd packages/irc-bridge && npm install` to pull `irc-framework`
-2. First-run Ergo on GCP Compute Engine; set oper password and register bridge account via SASL
-3. End-to-end smoke test: bridge connects → flush → `GET /irc/metrics` returns data
-4. Merge stellar-api `feat/korin-pink` → `npm run db:generate && npm run db:migrate && npm run db:seed-wiki`
-5. Add `CLAUDE.md` to korin-pink root (dev commands, env vars)
+1. First-run Ergo on GCP Compute Engine; set oper password and register bridge account via SASL
+2. End-to-end smoke test: bridge connects → flush → `GET /irc/metrics` returns data
+3. End-to-end verify test: member sends `!verify <code>` privately → bridge → `POST /irc/verify` → stellar links the nick
+4. Merge stellar-api `feat/korin-pink` → `pnpm db:generate && pnpm db:migrate && pnpm db:seed-wiki`
 
 ---
 
@@ -34,6 +34,7 @@ Current project and domain context for `obrien-k/korin-pink`.
 |---|---|---|---|
 | `POST` | `/irc/metrics` | `x-bridge-secret` | irc-bridge |
 | `GET` | `/irc/metrics` | `x-pull-key` | stellar-api |
+| `POST` | `/irc/verify` | `x-bridge-secret` | irc-bridge |
 | `POST` | `/irc/announce` | none | RSS/podcast consumers |
 
 ## Environment variables (irc-bridge)
@@ -68,7 +69,7 @@ channelQuality = log1p(channelCount)   / log1p(5)
 
 **Integration pattern:** stellar-api pulls `GET /irc/metrics` every 5 min. Webhooks evaluated and deferred (see stellar-api ADR-0013). Korin emits raw signals only — scoring is stellar-api's responsibility.
 
-**Nick mapping:** users link their Ergo nick to their Stellar account via `PUT /api/users/:id/irc-nick` on stellar-api. Self-reported, unique constraint, no SASL verification at v0.1.x.
+**Nick mapping:** users link their Ergo nick to their Stellar account via `PUT /api/users/:id/irc-nick` on stellar-api (unique constraint). Ownership of the nick is **verified** (stellar-api ADR-0015): the member sends `!verify <code>` privately to the bridge bot, which relays it through korin's `POST /irc/verify` to stellar's `POST /api/users/irc-nick/verify`. Verification is *not* via SASL — it proves nick control through the challenge code, resting on Ergo's `force-nick-equals-account`. SASL itself stays Ergo-native (Buntdb); there is no Stellar credential→SASL bridging (ADR-0013).
 
 ---
 
@@ -95,7 +96,7 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | - | -------- | ----- | ------ |
 | 3 | Should korin-omnibus track other `korin.{color}` instances as submodules? | obrien-k | open |
 | 4 | irc-bridge state persistence beyond ephemeral? | obrien-k | ephemeral for v0.1.x; revisit at v0.3.0 |
-| 5 | SASL: Stellar credentials vs Ergo-native accounts? | both | Ergo-native for v0.1.x |
+| 5 | SASL: Stellar credentials vs Ergo-native accounts? | both | **resolved** — Ergo-native (Buntdb); delegated SASL killed by ADR-0013. Nick↔Stellar link is the ADR-0015 verified-nick proof, not SASL. |
 | 6 | irc-bridge pairwise mention tracking: irc-bridge must parse PRIVMSG for nick mentions and emit `interactions: [{ from, to, mentionCount }]` alongside per-user metrics in each flush. Needed for stellar-api's IRC Mutual-Mention × Friends negative CRS vector (PRD-03). Threshold (min mentions/direction/7d) TBD — pin before implementing. | obrien-k | pending v0.2.x |
 
 ---
@@ -108,8 +109,8 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | GCP default, deployment-agnostic docs | Workspace integration; community may self-host | adr/002 |
 | irc-bridge as separate stateless service | Isolation; bridge crash doesn't affect API | adr/003 |
 | Pull (polling) over webhooks | Simpler; tolerates downtime; no retry needed at v0.1.x scale | stellar-api ADR-0013 |
-| irc-bridge state ephemeral for v0.1.x | Flush windows short; loss on restart is one 60s window | — |
-| Nick mapping user-managed (self-reported) | No SASL verification needed at v0.1.x | stellar-api ADR-0013 |
+| irc-bridge state ephemeral for v0.1.x | Flush windows short; loss on restart is one 60s window | adr/003 |
+| Verified nick link (`!verify <code>` relay), not self-reported | Proves nick ownership without delegated SASL; rests on `force-nick-equals-account` | stellar-api ADR-0015 |
 | `irc-framework` as IRC client | IRCv3 support, SASL PLAIN, active maintenance | — |
 
 ---

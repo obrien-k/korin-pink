@@ -8,7 +8,7 @@
 
 ## Context
 
-korin.pink requires an IRC daemon for the `irc.korin.pink` server. Stellar's PRD (v0.0.4) defines IRC presence as a future CRS signal, requiring that the daemon be instrumented for activity tracking. The daemon must support TLS, SASL authentication (for Stellar credential bridging), message history, and persistent accounts.
+korin.pink requires an IRC daemon for the `irc.korin.pink` server. Stellar's PRD (v0.0.4) defines IRC presence as a future CRS signal, requiring that the daemon be instrumented for activity tracking. The daemon must support TLS, SASL authentication (Ergo-native accounts), message history, and persistent accounts.
 
 Candidates evaluated:
 
@@ -33,7 +33,7 @@ Candidates evaluated:
 - **IRCv3.** Native support for `account-notify`, `SASL`, `MONITOR`, `labeled-response` — all needed for the irc-bridge's activity tracking.
 - **Go.** Consistent with the Stellar ecosystem's Go services. Simple to containerize.
 - **Active development.** Maintained, security-patched, and well-documented.
-- **SASL PLAIN.** Allows the irc-bridge to bridge Stellar account credentials to IRC auth without a separate identity service in v0.x.
+- **SASL PLAIN.** Ergo-native account auth (Buntdb) for the irc-bridge and members — no separate identity service. (Original delegated-SASL bridging of Stellar credentials was superseded by stellar-api ADR-0013; nick↔Stellar linkage is now the verified-nick proof in ADR-0015, not SASL.)
 
 ---
 
