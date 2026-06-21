@@ -1,6 +1,6 @@
 {
   "name": "@korin/harden",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Test-driven host/Ergo hardening: firewall ruleset + fail2ban filter generators",
