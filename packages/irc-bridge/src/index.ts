@@ -5,6 +5,7 @@ import {
   VERIFY_UNAVAILABLE,
   type VerifyOutcome,
 } from './verify.js';
+import { fetchStellarId } from './resolve.js';
 
 // ---------------------------------------------------------------------------
 // Config — all from env, sane defaults for local dev
@@ -27,6 +28,7 @@ const FLUSH_INTERVAL_MS = parseInt(process.env.FLUSH_INTERVAL_MS ?? '60000', 10)
 interface UserActivity {
   nick: string;
   stellarId?: string;
+  stellarResolved: boolean;  // korin gave a definitive answer (linked or not)
   joinedAt: number | null;   // unix ms — null when offline
   presenceMs: number;        // accumulated across joins in this window
   messageCount: number;
@@ -36,10 +38,14 @@ interface UserActivity {
 const windowStart = Date.now();
 const users = new Map<string, UserActivity>();
 
+// Nicks with an in-flight resolution, so concurrent sightings don't double-fetch.
+const resolving = new Set<string>();
+
 function getOrCreate(nick: string): UserActivity {
   if (!users.has(nick)) {
     users.set(nick, {
       nick,
+      stellarResolved: false,
       joinedAt: null,
       presenceMs: 0,
       messageCount: 0,
@@ -49,10 +55,29 @@ function getOrCreate(nick: string): UserActivity {
   return users.get(nick)!;
 }
 
+// Resolve a nick to its Stellar id via korin and cache it on the record. A miss
+// (no linked account) still counts as resolved — stellarId stays absent and the
+// nick flushes as raw activity. An error leaves it unresolved to retry on the
+// next sighting; resolution never blocks or crashes the bridge.
+async function resolveStellarId(u: UserActivity): Promise<void> {
+  if (u.stellarResolved || resolving.has(u.nick)) return;
+  resolving.add(u.nick);
+  try {
+    const stellarId = await fetchStellarId(KORIN_API_URL, IRC_BRIDGE_SECRET, u.nick);
+    if (stellarId) u.stellarId = stellarId;
+    u.stellarResolved = true;
+  } catch (err) {
+    console.error(`[bridge] stellar-id resolve failed for ${u.nick}:`, err);
+  } finally {
+    resolving.delete(u.nick);
+  }
+}
+
 function markOnline(nick: string, channel?: string): void {
   const u = getOrCreate(nick);
   if (u.joinedAt === null) u.joinedAt = Date.now();
   if (channel) u.channels.add(channel);
+  void resolveStellarId(u);
 }
 
 function markOffline(nick: string): void {
@@ -159,6 +184,10 @@ client.on('nick', (event: { nick: string; new_nick: string }) => {
     u.nick = event.new_nick;
     users.set(event.new_nick, u);
     users.delete(event.nick);
+    // The Stellar link is keyed on the nick — re-resolve under the new one.
+    u.stellarId = undefined;
+    u.stellarResolved = false;
+    void resolveStellarId(u);
   }
 });
 
@@ -179,6 +208,7 @@ client.on('privmsg', (event: { nick: string; target: string; message: string }) 
   const u = getOrCreate(event.nick);
   u.messageCount++;
   if (event.target.startsWith('#')) u.channels.add(event.target);
+  void resolveStellarId(u);
 });
 
 // Relay a verify command to korin (which proxies to stellar) and whisper the
