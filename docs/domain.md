@@ -18,7 +18,7 @@ Each instance is an independent full-stack deployment serving the Stellar ecosys
 **Naming rules:**
 - Domains follow the pattern `korin.{color}` where `{color}` is a valid CSS color name
 - Each instance is self-contained: its own domain, codebase, and GCP project (or VPS)
-- Shared conventions live in `obrien-k/korin-omnibus` (this repo)
+- Shared conventions live in `obrien-k/korin-omnibus` (the conventions/landing repo — not this one; this is the korin-pink impl repo)
 - Do not create new `korin.{color}` instances without an ADR
 
 ---
@@ -51,7 +51,7 @@ CommunityValueIndex =
 
 | Signal field     | Description                              |
 | ---------------- | ---------------------------------------- |
-| stellarUserId    | Stellar account ID (resolved via SASL)   |
+| stellarUserId    | Stellar account ID (resolved via the ADR-0015 verified-nick link) |
 | nick             | IRC nick at time of flush                |
 | presenceSeconds  | Seconds online in the flush window       |
 | messageCount     | Total messages sent in window            |
@@ -68,6 +68,7 @@ CommunityValueIndex =
 | ------ | ----------------------------- | ------------------------------------ |
 | GET    | /api/users/by-irc-nick/:nick  | resolve nick → Stellar account       |
 | PUT    | /api/users/:id/irc-nick       | link/clear nick (body `{ ircNick }`) |
+| POST   | /api/users/irc-nick/verify    | verify nick ownership (body `{ nick, code }`, ADR-0015) |
 | GET    | /api/users/:id/reputation     | read CRS (display only)              |
 
 **korin endpoints stellar calls** (`x-pull-key: STELLAR_PULL_KEY`):
@@ -76,6 +77,8 @@ CommunityValueIndex =
 | ------ | ------------- | -------------------------------------------------- |
 | GET    | /irc/metrics  | stellar **pulls** raw IRC signals (every ~5 min)   |
 | POST   | /irc/announce | stellar **pushes** release RSS for korin to render |
+
+> The bridge also calls korin's `POST /irc/verify` (`x-bridge-secret`) when it sees a private `!verify <code>`; korin proxies that to stellar's `POST /api/users/irc-nick/verify` above. Internal bridge→korin hop, not a stellar-facing endpoint (ADR-0015).
 
 > Pull-only for metrics — korin does **not** push to stellar. (Resolved the former open question #1.) The full contract is fixed in stellar-api ADR-0013.
 
@@ -86,8 +89,8 @@ CommunityValueIndex =
 Ergo is the IRC daemon. Key facts for agents:
 
 - Config lives in `packages/irc/ergo.yaml` in `korin-pink`
-- Accounts use `force-nick-equals-account: true` — a user's nick is their account name
-- SASL PLAIN is the intended auth mechanism; credentials map to Stellar account tokens
+- Accounts use `force-nick-equals-account: true` — a user's nick is their account name. This is load-bearing: ADR-0015's whole verification boundary rests on it (only a nick's owner can send as it).
+- SASL is **Ergo-native** — accounts live in Ergo's own Buntdb, authenticated locally. There is no credential→Stellar-token mapping: the delegated-SASL/IRCKey model (a member's SASL password being a Stellar-issued token) was retired by ADR-0013. The Stellar↔nick link is the ADR-0015 verified-nick link (a `!verify <code>` challenge), not a SASL credential.
 - Ergo stores data in Buntdb (`ircd.db`) — embedded, no separate DB process needed
 - Ergo does **not** have a built-in REST API in stable releases; metrics are extracted by the irc-bridge bot via operator IRC commands
 - History is enabled with 7-day retention for registered channels

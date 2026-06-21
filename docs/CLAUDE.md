@@ -1,42 +1,41 @@
 # CLAUDE.md
 
-> Claude Code configuration for `obrien-k/korin-omnibus`.
-> Start every session by reading `docs/home.md`, then `CONTEXT.md`.
+> Claude Code configuration for `obrien-k/korin-pink`.
+> Start every session by reading `docs/home.md`, then `docs/CONTEXT.md`.
 
 ---
 
 ## Project Identity
 
-**Repo:** `obrien-k/korin-omnibus`
+**Repo:** `obrien-k/korin-pink` — the implementation repo (fork-only; `origin` = obrien-k)
 **Scheme:** `korin.{color}` — community infrastructure deployments
-**Primary instance:** `korin.pink` — IRC + data hub for Stellar (`orphic-inc/stellar-api`)
-**Org:** orphic-inc (upstream); obrien-k (Korin infra)
+**This instance:** `korin.pink` — IRC + data hub for Stellar (`orphic-inc/stellar-api`)
+**Org:** orphic-inc (upstream product); obrien-k (Korin infra)
+
+> Shared `korin.{color}` conventions are tracked in `obrien-k/korin-omnibus` (content/landing).
+> Per `docs/GOVERNANCE.md`, korin-omnibus holds **no ADRs** — this repo's ADRs live in `docs/adr/`.
 
 ---
 
 ## Codebase Layout
 
 ```
-korin-omnibus/          ← you are here (docs + coordination)
-  CLAUDE.md
-  AGENTS.md
-  CONTEXT.md
-  docs/
-    home.md             ← start here
-    adr/                ← architectural decisions
-    agents/             ← workflow, labels, domain
-
-korin-pink/             ← sibling implementation repo
+korin-pink/             ← you are here (impl repo)
   packages/
-    api/                ← Fastify + TS (files, wiki, IRC metrics, AI, mail)
+    api/                ← Fastify + TS (files, wiki, IRC metrics + verify, AI, mail)
     web/                ← minimal static portal
     irc/                ← Ergo IRCd config + Dockerfile
-    irc-bridge/         ← Node bot: Ergo → metrics → stellar-api
+    irc-bridge/         ← Node bot: Ergo → metrics + !verify relay → stellar-api
   infra/
-    docker-compose.yml  ← universal baseline
+    docker-compose.yml  ← universal baseline (deployment-agnostic)
     Caddyfile
     gcp/main.tf
-  docs/deploy/          ← self-host, VPS, GCP guides
+  docs/
+    home.md             ← start here
+    CONTEXT.md          ← current focus + decisions
+    AGENTS.md           ← agent workflow
+    adr/                ← architectural decision records (001, 002, 003)
+    deploy/             ← self-host, VPS, GCP guides
 ```
 
 ---
@@ -95,9 +94,14 @@ Authoritative source: **stellar-api ADR-0013 §Integration contract**. Metrics a
   then polls `GET /irc/metrics` with `x-pull-key: $STELLAR_PULL_KEY`.
 - **Announce (stellar pushes korin):** stellar-api POSTs release RSS to korin's
   `POST /irc/announce` (`x-pull-key: $STELLAR_PULL_KEY`); korin renders it to IRC.
+- **Verify (ADR-0015):** a member sends `!verify <code>` privately to the bridge bot.
+  The bridge relays it to korin's `POST /irc/verify` (`x-bridge-secret`), which calls
+  `stellar.verifyNick(nick, code)` → stellar-api `POST /api/users/irc-nick/verify`.
+  This proves nick ownership without delegated SASL (rests on `force-nick-equals-account`).
 - **korin → stellar calls** (`Authorization: Bearer $STELLAR_API_KEY`):
   `GET /api/users/by-irc-nick/:nick`, `PUT /api/users/:id/irc-nick` (`{ ircNick }`),
-  `GET /api/users/:id/reputation`. See `lib/stellar.ts`.
+  `POST /api/users/irc-nick/verify` (`{ nick, code }`), `GET /api/users/:id/reputation`.
+  See `lib/stellar.ts`.
 
 `GET /irc/metrics` payload shape (raw signals, keyed by nick):
 ```typescript

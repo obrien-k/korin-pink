@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+- Verified IRC nick relay (stellar-api ADR-0015; korin tail of stellar #163, korin
+  PR #31). A member proves nick ownership by sending `!verify <code>` privately to
+  the bridge bot — the bridge relays it through korin's new `POST /irc/verify`
+  (`x-bridge-secret`), which calls `stellar.verifyNick(nick, code)` →
+  stellar-api `POST /api/users/irc-nick/verify`. Verification is *not* SASL; it
+  rests on Ergo's `force-nick-equals-account`. Covers `packages/api/src/routes/irc.ts`,
+  `packages/api/src/lib/stellar.ts`, `packages/irc-bridge/src/{verify,index}.ts`,
+  the `ergo.yaml` ADR-0015 note, and tests.
+
+### Changed
+- Docs (`CONTEXT.md`, `CLAUDE.md`, `domain.md`, `adr/001`): removed the superseded
+  "self-reported nick / no verification" and delegated-SASL-credential claims to
+  match the ADR-0015 verified-nick reality. Adopted `docs/adr/` in-repo and added
+  the previously-dangling `002-deployment-targets` and `003-irc-bridge-state` ADR
+  stubs that the docs already cited. Re-scoped `CLAUDE.md` from korin-omnibus to
+  korin-pink.
+
 ## [v0.1.2] - 2026-06-16
 
 ### Added
