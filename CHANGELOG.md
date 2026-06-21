@@ -2,7 +2,17 @@
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-06-21
+
 ### Added
+- **Public deploy path to the Vultr box**: the `api.korin.pink` front-door fronted by
+  Caddy (#16, #27), plus a manual-dispatch GitHub Actions deploy that renders the box
+  `.env` from secrets and injects the korin↔stellar shared keys (#17, #30).
+- **`packages/ledger`**: scaffolded the Go hot-path accounting service (ADR-004) —
+  internal-only on the korin network, flushing summaries to stellar-api as the system
+  of record (#32).
+- **`packages/chat`**: the gamja web IRC client served at `/chat/`, surfaced from the
+  portal (#33, #34).
 - Verified IRC nick relay (stellar-api ADR-0015; korin tail of stellar #163, korin
   PR #31). A member proves nick ownership by sending `!verify <code>` privately to
   the bridge bot — the bridge relays it through korin's new `POST /irc/verify`
@@ -11,6 +21,18 @@
   rests on Ergo's `force-nick-equals-account`. Covers `packages/api/src/routes/irc.ts`,
   `packages/api/src/lib/stellar.ts`, `packages/irc-bridge/src/{verify,index}.ts`,
   the `ergo.yaml` ADR-0015 note, and tests.
+- **nick → stellarId resolution** (ADR-0013): the bridge resolves and caches each
+  nick's Stellar account via korin's new `GET /irc/users/:nick/stellar-id`
+  (`x-bridge-secret`) so flushed metrics are account-attributed — a miss flushes raw
+  activity, an error retries rather than mislinks (#38).
+- **`createBridge(deps)` seam + end-to-end smoke** (#20, #40): extracted the bridge's
+  accumulator/handlers/flush/reconnect behind an injectable factory (mirroring korin's
+  `buildServer`) with deterministic unit tests, plus an on-demand `npm run smoke` that
+  boots Ergo + api + bridge and asserts a populated `GET /irc/metrics`. Surfaced and
+  fixed two `irc-framework` v4 watchpoints: `WHO * %nuha` emitted no `wholist` (now
+  seeds via `who('*')`, real channels only) and `auto_reconnect` raced the manual
+  reconnect (now a single guarded path).
+- Wiki: ported the lineage-legacy pages from `wuu.bi` and wired the sidebar (#36).
 
 ### Changed
 - Docs (`CONTEXT.md`, `CLAUDE.md`, `domain.md`, `adr/001`): removed the superseded
@@ -18,7 +40,20 @@
   match the ADR-0015 verified-nick reality. Adopted `docs/adr/` in-repo and added
   the previously-dangling `002-deployment-targets` and `003-irc-bridge-state` ADR
   stubs that the docs already cited. Re-scoped `CLAUDE.md` from korin-omnibus to
-  korin-pink.
+  korin-pink (#39).
+- `packages/ledger` docs: domain nomenclature stated positively; added **Neutralpass**
+  to the ledger vocabulary (#37).
+- Dropped unbuilt placeholder services from the portal/compose so only shipped
+  surfaces are exposed (#34).
+
+### Fixed
+- `packages/harden`: the `DOCKER-USER` perimeter was strangling container egress and
+  web ingress — corrected the chain so containers reach the network and ingress isn't
+  blocked (#28); the firewall now detects the public NIC at runtime instead of
+  hardcoding `eth0` (#29).
+- `packages/irc`: Ergo wouldn't boot with the committed empty-password opers —
+  disabled them for a clean boot (#34), then restored real opers via a box-local
+  mounted config so no secrets are committed (#35).
 
 ## [v0.1.2] - 2026-06-16
 
@@ -116,7 +151,8 @@
 ### Note
 `korin-omnibus` remains the private historical repository for overall schema/domain planning, but `korin-pink` serves as the public implementation monorepo.
 
-[Unreleased]: https://github.com/obrien-k/korin-pink/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/obrien-k/korin-pink/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/obrien-k/korin-pink/compare/v0.1.2...v0.2.0
 [v0.1.2]: https://github.com/obrien-k/korin-pink/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/obrien-k/korin-pink/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/obrien-k/korin-pink/releases/tag/v0.1.0
