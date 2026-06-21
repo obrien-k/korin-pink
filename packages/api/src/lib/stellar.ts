@@ -30,6 +30,17 @@ export interface VerifyNickResult {
   reason?: string
 }
 
+/**
+ * A non-2xx response from stellar-api, carrying the HTTP status so callers can
+ * branch on it (e.g. treat a 404 as "no such link" rather than a real failure).
+ */
+export class StellarApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'StellarApiError'
+  }
+}
+
 export interface StellarClient {
   getUserByNick(nick: string): Promise<StellarUser | null>
   linkNick(stellarUserId: number, ircNick: string | null): Promise<void>
@@ -55,19 +66,23 @@ export function createStellarClient(config: StellarConfig): StellarClient {
 
     if (!res.ok) {
       const body = await res.text()
-      throw new Error(`stellar-api ${res.status} @ ${path}: ${body}`)
+      throw new StellarApiError(res.status, `stellar-api ${res.status} @ ${path}: ${body}`)
     }
 
     return res.json() as Promise<T>
   }
 
   return {
-    // Look up a Stellar user by their registered IRC nick.
+    // Look up a Stellar user by their registered IRC nick. A 404 means the nick
+    // simply isn't linked — a normal "no account" answer, returned as null. Any
+    // other failure (missing config, 401, 5xx, network/timeout) is rethrown so
+    // the caller can fail closed and retry rather than mislink the activity.
     async getUserByNick(nick) {
       try {
         return await stellarFetch<StellarUser>(`/api/users/by-irc-nick/${encodeURIComponent(nick)}`)
-      } catch {
-        return null
+      } catch (err) {
+        if (err instanceof StellarApiError && err.status === 404) return null
+        throw err
       }
     },
     // Register / update an IRC nick on a Stellar account.

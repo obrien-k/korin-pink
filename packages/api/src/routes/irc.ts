@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { requireSharedSecret } from '../lib/auth.js';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
 import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
-import { createStellarClient } from '../lib/stellar.js';
 
 // ---------------------------------------------------------------------------
 // IRC metrics — shared types
@@ -150,9 +149,8 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Validation failed', details: result.error.format() });
     }
 
-    const stellar = createStellarClient(app.config);
     try {
-      const outcome = await stellar.verifyNick(result.data.nick, result.data.code);
+      const outcome = await app.stellar.verifyNick(result.data.nick, result.data.code);
       return reply.send(outcome);
     } catch (err: unknown) {
       // Transport/auth failure — stellar never saw it, so the code is NOT consumed
@@ -160,6 +158,25 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
       const message = err instanceof Error ? err.message : 'stellar verify call failed';
       request.log.warn({ err: message }, 'irc/verify relay to stellar failed');
       return reply.status(502).send({ verified: false, reason: 'Verification service unavailable, try again' });
+    }
+  });
+
+  // GET /irc/users/:nick/stellar-id — bridge-facing nick → Stellar account lookup
+  // so the bridge can attribute a nick's metrics (ADR-0013). stellarId is null for
+  // an unlinked nick (not 404) so the bridge branches on the body; a missing config
+  // or upstream failure is a 502 (never null) so it retries rather than mislinks.
+  app.get('/irc/users/:nick/stellar-id', {
+    preHandler: requireSharedSecret('x-bridge-secret', app.config.ircBridgeSecret),
+  }, async (request, reply) => {
+    const { nick } = request.params as { nick: string };
+    try {
+      const user = await app.stellar.getUserByNick(nick);
+      // id is numeric upstream; emit as string to match the metrics payload.
+      return reply.send({ nick, stellarId: user ? String(user.id) : null });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'stellar lookup failed';
+      request.log.warn({ err: message }, 'irc stellar-id lookup failed');
+      return reply.status(502).send({ error: 'Stellar lookup unavailable' });
     }
   });
 }
