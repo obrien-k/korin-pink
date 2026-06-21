@@ -1,0 +1,61 @@
+# docker-compose.smoke.yml — self-contained stack for the on-demand end-to-end
+# bridge smoke (packages/irc-bridge/smoke/run.ts). Mirrors the universal
+# docker-compose.yml wiring (same build contexts, same korin network, same
+# depends_on) but is self-contained so it runs from a clean checkout:
+#   - no ../.env (inline smoke secrets only — nothing real)
+#   - plaintext IRC on 6667 via the trimmed ergo.smoke.yaml (no TLS certs)
+#   - a short FLUSH_INTERVAL_MS so the test forces a window in seconds
+#   - a NAMED volume for ergo data so a run never touches the committed
+#     infra/ergo-data, and `down -v` wipes it clean (idempotent re-runs)
+# High host ports (16667/13000) avoid clashing with a real local ergo/api.
+name: korin-smoke
+
+services:
+  ergo:
+    build:
+      context: ../packages/irc
+    ports:
+      - "16667:6667"
+    volumes:
+      # Mount the trimmed smoke config over the baked production one (same pattern
+      # as the universal compose's ERGO_CONF mount).
+      - ./ergo.smoke.yaml:/etc/ergo.yaml:ro
+      - ergo-smoke-data:/var/lib/ergo
+    networks: [korin]
+
+  api:
+    build:
+      context: ../packages/api
+    ports:
+      - "13000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - IRC_BRIDGE_SECRET=smoke-bridge-secret
+      - STELLAR_PULL_KEY=smoke-pull-key
+    networks: [korin]
+    depends_on: [ergo]
+
+  irc-bridge:
+    build:
+      context: ../packages/irc-bridge
+    environment:
+      - IRC_HOST=ergo
+      - IRC_PORT=6667
+      - IRC_TLS=false
+      - IRC_NICK=stellar-bridge
+      - IRC_SASL_USER=stellar-bridge
+      - IRC_SASL_PASS=smoke-bridge-pass
+      - IRC_BRIDGE_SECRET=smoke-bridge-secret
+      - IRC_CHANNELS=#stellar
+      - KORIN_API_URL=http://api:3000
+      - FLUSH_INTERVAL_MS=3000
+    networks: [korin]
+    depends_on: [ergo, api]
+
+volumes:
+  ergo-smoke-data:
+
+networks:
+  korin:
+    driver: bridge

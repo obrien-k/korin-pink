@@ -27,6 +27,8 @@ declare module 'irc-framework' {
     connect(options?: ConnectOptions): void;
     /** Subscribe to an IRC event. Payload shapes are event-specific. */
     on(event: string, handler: (event: any) => void): this;
+    /** Run a WHO/WHOX query; the tokened reply carries the channel (unlike a bare WHO). */
+    who(target: string, cb?: (event: any) => void): void;
     /** Send a raw IRC line. */
     raw(...args: string[]): void;
     /** Send a PRIVMSG to a target (nick or channel). */
