@@ -23,6 +23,9 @@ on:
     paths:
       - 'packages/web/**'
       - 'packages/chat/**'
+      # The wiki is built into packages/web/wiki at deploy time, so its source
+      # must also trigger a deploy — otherwise wiki-only changes never ship.
+      - 'wiki/**'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
