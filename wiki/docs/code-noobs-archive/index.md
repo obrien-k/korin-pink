@@ -168,6 +168,14 @@ Podcasts
 
 [Reach.JS](https://reach.sh) is like [Solidity ](https://docs.soliditylang.org/en/v0.8.15/)but better.
 
+## Books
+
+[The Pragmatic Programmer](https://books.google.com/books?id=5wBQEp6ruIAC) by Andrew Hunt, David Thomas
+
+[The Art of Community](https://books.google.com/books?id=DtZmvezJTIgC) by Jono Bacon
+
+[Dreaming in Code](https://books.google.com/books/about/Dreaming_in_Code.html?id=dZqcuS2SfDgC) by Scott Rosenberg
+
 ## Parking Lot
 
 Another helpful topic (not necessarily related to code, but possibly): how we can use the "inspect" function in a browser to diagnose issues with a store, whether it's a script issue or whatever. - Discussed on 03.10.18 -- this should be re-visited

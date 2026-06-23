@@ -17,3 +17,11 @@ infra/ergo-data/
 # (ERGO_CONF) — never commit. The committed template is packages/irc/ergo.yaml.
 infra/ergo.local.yaml
 .DS_Store
+
+# --- code-noobs Ghost recovery (docs/code-noobs branch) ---
+# Recovered Ghost JSON exports carry LIVE secrets: RSA members_private_key,
+# admin/content api_keys, session secrets, the "SellMore!" site password,
+# Slack + Zapier webhooks, owner bcrypt hash. Never commit the raw dump.
+.scratch/code-noobs/*.ghost.json
+wiki/docs/code-noobs-archive/*.ghost.json
+**/ghost-export*.json
