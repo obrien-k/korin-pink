@@ -2,7 +2,10 @@
 
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
-  ircSidebar: [
+  // One site-wide sidebar so IRC and Code Noobs sit at equal depth and are both
+  // visible from every page (previously they lived in separate sidebars and
+  // never appeared together).
+  mainSidebar: [
     {
       type: 'doc',
       id: 'introduction',
@@ -20,15 +23,12 @@ const sidebars = {
         'irc/irc-score',
       ],
     },
-  ],
-
-  archiveSidebar: [
     {
       type: 'category',
-      label: 'Code Noobs Archive',
+      label: 'Code Noobs',
       collapsed: false,
       items: [
-        'code-noobs-archive/index',
+        { type: 'doc', id: 'code-noobs-archive/index', label: 'Code Noobs Root' },
         'code-noobs-archive/Introduction to Programming',
         'code-noobs-archive/Introduction to DOM',
         'code-noobs-archive/Functions',

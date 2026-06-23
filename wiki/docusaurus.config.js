@@ -53,16 +53,16 @@ const config = {
         },
         items: [
           {
-            type: 'docSidebar',
-            sidebarId: 'ircSidebar',
+            type: 'doc',
+            docId: 'irc/irc-index',
             position: 'left',
             label: 'IRC',
           },
           {
-            type: 'docSidebar',
-            sidebarId: 'archiveSidebar',
+            type: 'doc',
+            docId: 'code-noobs-archive/index',
             position: 'left',
-            label: 'Archive',
+            label: 'Code Noobs',
           },
           {
             href: 'https://github.com/obrien-k/korin-pink',
