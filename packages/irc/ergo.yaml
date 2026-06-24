@@ -88,7 +88,7 @@ accounts:
     enabled: true
     # Allow registration via email (korin.pink custom domain)
     email-verification:
-      enabled: false  # TODO(#5): enable with korin.pink SMTP
+      enabled: false  # TODO(#45): enable with korin.pink SMTP
     allow-before-connect: true
     throttling:
       enabled: true

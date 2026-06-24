@@ -188,14 +188,20 @@ x-api-key: $STELLAR_PULL_KEY
 
 `flush=true` clears the in-memory store. stellar-api owns the cadence.
 
-### Nick → stellarUserId resolution (unconfirmed)
+### Nick → stellarId resolution
 
 ```
 GET /irc/users/:nick/stellar-id   (korin API proxies to stellar-api)
-→ { stellarUserId: "string" }
+x-bridge-secret: $IRC_BRIDGE_SECRET
+
+→ { nick: "string", stellarId: "string | null" }
 ```
 
-⚠️ This endpoint path is not yet confirmed with orphic-inc. See `CONTEXT.md § Open Questions #1`. Do not implement the proxy until confirmed.
+`stellarId` is `null` for an unlinked nick (not a 404), so the bridge branches on the
+body; an upstream failure or missing config is a `502` (never `null`) so the bridge
+retries rather than mislinks. Lets the bridge attribute a nick's metrics (ADR-0013).
+
+Shipped in PR #38 — see `packages/api/src/routes/irc.ts`.
 
 ---
 
