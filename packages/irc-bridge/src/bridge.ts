@@ -21,6 +21,7 @@ import {
   type VerifyOutcome,
 } from './verify.js';
 import { fetchStellarId } from './resolve.js';
+import { extractMentions } from './mentions.js';
 
 // ---------------------------------------------------------------------------
 // Injected dependencies
@@ -86,8 +87,11 @@ interface UserActivity {
   stellarResolved: boolean; // korin gave a definitive answer (linked or not)
   joinedAt: number | null; // unix ms — null when offline
   presenceMs: number; // accumulated across joins in this window
-  messageCount: number;
+  messageCount: number; // total, including private queries the bridge sees
   channels: Set<string>;
+  // Per-channel message tally (issue #42). Keyed by channel; only channel-targeted
+  // messages land here, so its values sum to ≤ messageCount (private msgs excluded).
+  channelMessages: Map<string, number>;
 }
 
 export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHandle {
@@ -101,6 +105,10 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
   const users = new Map<string, UserActivity>();
   // Nicks with an in-flight resolution, so concurrent sightings don't double-fetch.
   const resolving = new Set<string>();
+  // Directional pairwise mention tally (issue #42): from → to → count, cumulative
+  // across the window like the per-user counters. stellar-api folds these into its
+  // mutual-mention vector; the bridge only emits the raw directional signal.
+  const mentions = new Map<string, Map<string, number>>();
 
   let flushTimer: ReturnType<typeof setInterval> | null = null;
   // Guard so v4 auto_reconnect (disabled) and a burst of `socket close` events can't
@@ -117,6 +125,7 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
         presenceMs: 0,
         messageCount: 0,
         channels: new Set(),
+        channelMessages: new Map(),
       };
       users.set(nick, u);
     }
@@ -161,12 +170,57 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
     }
   }
 
+  // Tally each tracked nick `from` mentioned in this message. Only nicks already in
+  // the roster can be a target, so a build a lowercase index of it per message —
+  // cheap for a small community, and it always reflects the current set after joins
+  // and nick changes (issue #42).
+  function recordMentions(from: string, message: string): void {
+    const byLower = new Map<string, string>();
+    for (const nick of users.keys()) byLower.set(nick.toLowerCase(), nick);
+    for (const to of extractMentions(message, byLower, from.toLowerCase())) {
+      const fromMap = mentions.get(from) ?? new Map<string, number>();
+      fromMap.set(to, (fromMap.get(to) ?? 0) + 1);
+      mentions.set(from, fromMap);
+    }
+  }
+
+  // Carry a nick's mention tallies across a rename, on both the `from` (outgoing)
+  // and `to` (incoming) sides, so a rename mid-window neither drops nor splits a
+  // pair's history. A rename that collides into a self-pair is dropped at flush.
+  function renameMentions(oldNick: string, newNick: string): void {
+    if (oldNick === newNick) return;
+    const out = mentions.get(oldNick);
+    if (out) {
+      const dest = mentions.get(newNick) ?? new Map<string, number>();
+      for (const [to, n] of out) dest.set(to, (dest.get(to) ?? 0) + n);
+      mentions.set(newNick, dest);
+      mentions.delete(oldNick);
+    }
+    for (const tos of mentions.values()) {
+      const n = tos.get(oldNick);
+      if (n !== undefined) {
+        tos.set(newNick, (tos.get(newNick) ?? 0) + n);
+        tos.delete(oldNick);
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Flush to korin API
   // ---------------------------------------------------------------------------
 
   async function flush(): Promise<void> {
     const windowEnd = now();
+
+    // Flatten the directional mention tallies into wire rows, dropping any self-pair
+    // a nick-rename collision may have produced (issue #42).
+    const interactions: Array<{ from: string; to: string; mentionCount: number }> = [];
+    for (const [from, tos] of mentions) {
+      for (const [to, mentionCount] of tos) {
+        if (from === to) continue;
+        interactions.push({ from, to, mentionCount });
+      }
+    }
 
     const payload = {
       users: [...users.values()].map((u) => {
@@ -180,10 +234,12 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
           messageCount: u.messageCount,
           channelCount: u.channels.size,
           channels: [...u.channels],
+          channelMessages: Object.fromEntries(u.channelMessages),
           windowStart,
           windowEnd,
         };
       }),
+      interactions,
     };
 
     try {
@@ -282,6 +338,8 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
         u.nick = event.new_nick;
         users.set(event.new_nick, u);
         users.delete(event.nick);
+        // Mention tallies are keyed on the nick too — move them with the user.
+        renameMentions(event.nick, event.new_nick);
         // The Stellar link is keyed on the nick — re-resolve under the new one.
         u.stellarId = undefined;
         u.stellarResolved = false;
@@ -305,7 +363,13 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
 
       const u = getOrCreate(event.nick);
       u.messageCount++;
-      if (event.target.startsWith('#')) u.channels.add(event.target);
+      if (event.target.startsWith('#')) {
+        u.channels.add(event.target);
+        u.channelMessages.set(event.target, (u.channelMessages.get(event.target) ?? 0) + 1);
+      }
+      // Tally pairwise mentions (issue #42). Runs after getOrCreate so the sender is
+      // in the roster; extractMentions skips the sender so it's never a self-pair.
+      recordMentions(event.nick, event.message);
       void resolveStellarId(u);
     });
 

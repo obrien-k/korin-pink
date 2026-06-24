@@ -139,6 +139,7 @@ interface UserMetricsRow {
   messageCount: number;
   channelCount: number;
   channels: string[];
+  channelMessages?: Record<string, number>; // per-channel breakdown (#42)
   windowStart: number;
   windowEnd: number;
 }
@@ -215,6 +216,10 @@ async function main(): Promise<void> {
     assert(me!.messageCount >= 3, `messageCount counts the sent lines (got ${me!.messageCount})`);
     assert(me!.channelCount >= 1, `channelCount is non-zero (got ${me!.channelCount})`);
     assert(me!.channels.includes(CHANNEL), `channels includes ${CHANNEL} (got ${me!.channels.join(',')})`);
+    assert(
+      (me!.channelMessages?.[CHANNEL] ?? 0) >= messages.length,
+      `channelMessages breaks down by channel (#42) — ${CHANNEL} got ${me!.channelMessages?.[CHANNEL] ?? 0}`,
+    );
     assert(me!.presenceSeconds >= 1, `presenceSeconds accrued (got ${me!.presenceSeconds})`);
     assert(me!.windowStart > 0 && me!.windowEnd >= me!.windowStart, 'window bounds are sane');
 

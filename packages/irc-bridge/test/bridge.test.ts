@@ -51,8 +51,15 @@ interface UserMetricsRow {
   messageCount: number;
   channelCount: number;
   channels: string[];
+  channelMessages: Record<string, number>;
   windowStart: number;
   windowEnd: number;
+}
+
+interface InteractionRow {
+  from: string;
+  to: string;
+  mentionCount: number;
 }
 
 // A recording fetch: GET /irc/users/:nick/stellar-id resolves from `stellarMap`
@@ -61,14 +68,19 @@ interface UserMetricsRow {
 function makeFetch(stellarMap: Record<string, string | null>) {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const metricsPosts: UserMetricsRow[][] = [];
+  const interactionPosts: InteractionRow[][] = [];
 
   const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
     const u = String(url);
     calls.push({ url: u, init });
 
     if (init?.method === 'POST' && u.endsWith('/irc/metrics')) {
-      const body = JSON.parse(String(init.body)) as { users: UserMetricsRow[] };
+      const body = JSON.parse(String(init.body)) as {
+        users: UserMetricsRow[];
+        interactions: InteractionRow[];
+      };
       metricsPosts.push(body.users);
+      interactionPosts.push(body.interactions);
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
@@ -85,7 +97,7 @@ function makeFetch(stellarMap: Record<string, string | null>) {
     return new Response('{}', { status: 200 });
   }) as typeof fetch;
 
-  return { fetchImpl, calls, metricsPosts };
+  return { fetchImpl, calls, metricsPosts, interactionPosts };
 }
 
 // setImmediate fires after the microtask queue drains, so awaiting it lets the
@@ -112,7 +124,7 @@ function baseConfig(over: Partial<BridgeConfig> = {}): BridgeConfig {
 
 test('flush payload: a linked and an unlinked user both flush sane raw signals', async () => {
   const client = new FakeClient();
-  const { fetchImpl, calls, metricsPosts } = makeFetch({ Alice: '42', Bob: null });
+  const { fetchImpl, calls, metricsPosts, interactionPosts } = makeFetch({ Alice: '42', Bob: null });
   let clock = 1_000_000;
   const bridge = createBridge(baseConfig(), { client, fetchImpl, now: () => clock });
 
@@ -137,16 +149,84 @@ test('flush payload: a linked and an unlinked user both flush sane raw signals',
     assert.equal(alice.messageCount, 2);
     assert.equal(alice.channelCount, 1);
     assert.deepEqual(alice.channels, ['#stellar']);
+    assert.deepEqual(alice.channelMessages, { '#stellar': 2 });
     assert.equal(alice.windowEnd - alice.windowStart, 5_000);
 
     // Unlinked nick: a definitive miss → stellarId absent, still flushes raw activity.
     assert.equal(bob.stellarId, undefined);
     assert.equal(bob.messageCount, 1);
     assert.deepEqual(bob.channels, ['#korin']);
+    assert.deepEqual(bob.channelMessages, { '#korin': 1 });
+
+    // No one mentioned anyone, so the interactions list is present but empty.
+    assert.deepEqual(interactionPosts.at(-1), []);
 
     // The stellar-id lookup carried the bridge secret (story 10).
     const lookup = calls.find((c) => c.url.endsWith('/irc/users/Alice/stellar-id'))!;
     assert.equal((lookup.init?.headers as Record<string, string>)['x-bridge-secret'], 'bridge-secret');
+  } finally {
+    await bridge.stop();
+  }
+});
+
+test('channelMessages: a per-channel breakdown that sums to the channel-message total', async () => {
+  const client = new FakeClient();
+  const { fetchImpl, metricsPosts } = makeFetch({ Alice: null });
+  let clock = 1_000;
+  const bridge = createBridge(baseConfig(), { client, fetchImpl, now: () => clock });
+  try {
+    bridge.start();
+    client.emit('join', { nick: 'Alice', channel: '#music' });
+    client.emit('privmsg', { nick: 'Alice', target: '#music', message: 'one' });
+    client.emit('privmsg', { nick: 'Alice', target: '#music', message: 'two' });
+    client.emit('privmsg', { nick: 'Alice', target: '#korin', message: 'three' });
+    // A private query to another user is counted in the total but not in any channel.
+    client.emit('privmsg', { nick: 'Alice', target: 'Carol', message: 'psst' });
+    await settle();
+    clock += 1_000;
+    await bridge.flush();
+
+    const alice = metricsPosts.at(-1)!.find((r) => r.nick === 'Alice')!;
+    assert.equal(alice.messageCount, 4); // total includes the private one
+    assert.deepEqual(alice.channelMessages, { '#music': 2, '#korin': 1 });
+    // Channel buckets sum to the channel-targeted subset, never the private msg.
+    const channelTotal = Object.values(alice.channelMessages).reduce((a, b) => a + b, 0);
+    assert.equal(channelTotal, 3);
+  } finally {
+    await bridge.stop();
+  }
+});
+
+test('interactions: directional mention pairs among tracked nicks, carried across a rename', async () => {
+  const client = new FakeClient();
+  const { fetchImpl, metricsPosts, interactionPosts } = makeFetch({ Alice: null, Bob: null });
+  let clock = 1_000;
+  const bridge = createBridge(baseConfig(), { client, fetchImpl, now: () => clock });
+  try {
+    bridge.start();
+    client.emit('join', { nick: 'Alice', channel: '#stellar' });
+    client.emit('join', { nick: 'Bob', channel: '#stellar' });
+    await settle();
+
+    // Alice mentions Bob (tracked → counted), an untracked Zed (ignored), and
+    // herself (never a self-pair). Bob never mentions Alice → the pair is one-sided.
+    client.emit('privmsg', { nick: 'Alice', target: '#stellar', message: 'Bob: and zed, alice out' });
+    client.emit('privmsg', { nick: 'Alice', target: '#stellar', message: 'still here Bob' });
+    client.emit('privmsg', { nick: 'Bob', target: '#stellar', message: 'noted' });
+
+    // Bob renames; Alice's two Bob-mentions must follow him to the new nick.
+    client.emit('nick', { nick: 'Bob', new_nick: 'Bobby' });
+    await settle();
+    clock += 1_000;
+    await bridge.flush();
+
+    const interactions = interactionPosts.at(-1)!;
+    assert.equal(interactions.length, 1, 'exactly one directional pair');
+    assert.deepEqual(interactions[0], { from: 'Alice', to: 'Bobby', mentionCount: 2 });
+
+    // Sanity: the rename also carried Bob's own activity to Bobby.
+    assert.ok(metricsPosts.at(-1)!.some((r) => r.nick === 'Bobby'));
+    assert.ok(!metricsPosts.at(-1)!.some((r) => r.nick === 'Bob'));
   } finally {
     await bridge.stop();
   }
