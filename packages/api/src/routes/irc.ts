@@ -15,13 +15,25 @@ export interface UserMetrics {
   messageCount: number;
   channelCount: number;
   channels: string[];
+  // Per-channel message breakdown (issue #42); absent on flushes from a pre-#42
+  // bridge. Values cover the channel-targeted subset, so they sum to ≤ messageCount.
+  channelMessages?: Record<string, number>;
   windowStart: number; // unix epoch ms
   windowEnd: number;
+}
+
+// Directional pairwise nick-mention count for the flush window (issue #42).
+// stellar-api folds these into its mutual-mention CRS vector; korin only relays them.
+export interface Interaction {
+  from: string;
+  to: string;
+  mentionCount: number;
 }
 
 // In-process store for the most recent flush from the irc-bridge.
 // stellar-api polls GET /irc/metrics and consumes this.
 let metricsStore: UserMetrics[] = [];
+let interactionsStore: Interaction[] = [];
 let lastFlushAt: number | null = null;
 
 // ---------------------------------------------------------------------------
@@ -37,10 +49,23 @@ const MetricsFlushSchema = z.object({
       messageCount: z.number().int().nonnegative(),
       channelCount: z.number().int().nonnegative(),
       channels: z.array(z.string()),
+      // Optional so a pre-#42 bridge still validates; the channel→count map.
+      channelMessages: z.record(z.string(), z.number().int().nonnegative()).optional(),
       windowStart: z.number().int().positive(),
       windowEnd: z.number().int().positive(),
     })
   ),
+  // Pairwise mention tallies (issue #42). Optional + defaulted so an older bridge
+  // that omits it is accepted and simply yields an empty interactions store.
+  interactions: z
+    .array(
+      z.object({
+        from: z.string().min(1),
+        to: z.string().min(1),
+        mentionCount: z.number().int().positive(),
+      })
+    )
+    .default([]),
 });
 
 // Nick Verification relay (stellar-api ADR-0015). The bridge forwards the
@@ -125,6 +150,7 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
     }
 
     metricsStore = result.data.users;
+    interactionsStore = result.data.interactions;
     lastFlushAt = Date.now();
 
     return reply.send({ ok: true, accepted: metricsStore.length });
@@ -134,7 +160,7 @@ async function ircMetricsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/irc/metrics', {
     preHandler: requireSharedSecret('x-pull-key', app.config.stellarPullKey),
   }, async (_request, reply) => {
-    return reply.send({ users: metricsStore, lastFlushAt });
+    return reply.send({ users: metricsStore, interactions: interactionsStore, lastFlushAt });
   });
 
   // POST /irc/verify — the bridge relays a "!verify <code>" it saw in a private

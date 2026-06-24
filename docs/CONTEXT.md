@@ -97,7 +97,7 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | 3 | Should korin-omnibus track other `korin.{color}` instances as submodules? | obrien-k | open |
 | 4 | irc-bridge state persistence beyond ephemeral? | obrien-k | ephemeral for v0.1.x; revisit at v0.3.0 |
 | 5 | SASL: Stellar credentials vs Ergo-native accounts? | both | **resolved** — Ergo-native (Buntdb); delegated SASL killed by ADR-0013. Nick↔Stellar link is the ADR-0015 verified-nick proof, not SASL. |
-| 6 | irc-bridge pairwise mention tracking: irc-bridge must parse PRIVMSG for nick mentions and emit `interactions: [{ from, to, mentionCount }]` alongside per-user metrics in each flush. Needed for stellar-api's IRC Mutual-Mention × Friends negative CRS vector (PRD-03). Threshold (min mentions/direction/7d) TBD — pin before implementing. | obrien-k | pending v0.2.x |
+| 6 | irc-bridge pairwise mention tracking: irc-bridge must parse PRIVMSG for nick mentions and emit `interactions: [{ from, to, mentionCount }]` alongside per-user metrics in each flush. Needed for stellar-api's IRC Mutual-Mention × Friends negative CRS vector (PRD-03). | obrien-k | **emission shipped** (#42): bridge emits raw directional `interactions[]` + per-channel `channelMessages`. The threshold/decay (min mentions/direction/7d) lives in stellar-api — korin only emits the raw signal. |
 
 ---
 

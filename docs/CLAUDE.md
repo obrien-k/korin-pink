@@ -110,12 +110,16 @@ Authoritative source: **stellar-api ADR-0013 §Integration contract**. Metrics a
     nick:            string
     stellarId?:      string
     presenceSeconds: number
-    messageCount:    number
+    messageCount:    number             // total, incl. private queries
     channelCount:    number
     channels:        string[]
+    channelMessages?: Record<string, number>  // per-channel breakdown (#42)
     windowStart:     number   // unix epoch ms
     windowEnd:       number
   }>
+  // Directional pairwise nick-mentions for the window (#42). stellar-api folds
+  // these into its mutual-mention vector; korin emits the raw signal only.
+  interactions: Array<{ from: string; to: string; mentionCount: number }>
   lastFlushAt: number | null
 }
 ```
