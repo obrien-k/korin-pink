@@ -167,16 +167,22 @@ chmod 600 /opt/korin.pink/infra/tls/privkey.pem
 
 ## 5. deploy
 
+Build the static web bundle (landing + wiki + chat) before the stack — Caddy
+serves it from `packages/web/dist`, so an unbuilt `dist/` means 404s:
+
 ```bash
-cd /opt/korin.pink/infra
+cd /opt/korin.pink
+pnpm install
+CHAT_ENV=dev packages/chat/build.sh   # gamja → public/chat
+pnpm --filter @korin/web build        # → packages/web/dist
+cd infra
 TLS_DIR=./tls docker compose up -d --build
 docker compose logs -f
 ```
 
-> The `wiki` service is profile-gated and **excluded by default** — its
-> Docusaurus build OOMs a 1 GB box and the wiki is already served from
-> Cloudflare Pages. Caddy's `/wiki/*` route will 502 here, which is expected.
-> Only run it locally if you have the RAM (≥2 GB / swap): add `--profile wiki`.
+> The wiki ships inside that Astro `dist/` (`/wiki/*`) — there's no separate
+> Docusaurus container to memory-OOM a 1 GB box anymore. The Astro build is
+> light; if RAM is very tight, build it elsewhere and copy `dist/` over.
 
 ## 6. Ergo first-run setup
 

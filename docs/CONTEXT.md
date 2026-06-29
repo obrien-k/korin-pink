@@ -122,5 +122,5 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | v0.1.0 | Monorepo scaffold, Ergo config, irc-bridge daemon, RSS parser, docs | ✅ done |
 | v0.2.0 | stellar-api integration wired, end-to-end flush validated | 🔧 in prog |
 | v0.3.0 | korin.pink live on GCP, IRC open to Stellar users | pending |
-| v0.4.0 | Wiki content populated, AI tools live | 🔧 in prog — IRC wiki pages written; Docusaurus config repointed to korin.pink; seed script in stellar-api |
+| v0.4.0 | Wiki content populated, AI tools live | 🔧 in prog — IRC wiki pages written; web portal + wiki migrated to Astro + Starlight (ADR-005); seed script in stellar-api |
 | v1.0.0 | IRCScore feeding CRS in stellar-api production | pending |
