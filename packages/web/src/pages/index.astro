@@ -1,8 +1,37 @@
 ---
-// korin.pink landing portal — ported 1:1 from the former static index.html.
-// A plain Astro page (not a Starlight route) so it keeps its bespoke terminal
-// look with no docs chrome. Docs live under /wiki/* via Starlight.
+// korin.pink landing portal — a plain Astro page (not a Starlight route) so it
+// keeps its bespoke terminal look with no docs chrome. Docs live at /wiki/*.
+import '@fontsource-variable/jetbrains-mono';
 import '../styles/landing.css';
+
+const site = 'https://korin.pink';
+const description = 'Stellar community infrastructure — IRC, a web chat client, and the community wiki.';
+const ogImage = `${site}/wiki/social-card.jpg`;
+
+const services = [
+  {
+    key: 'irc',
+    href: 'irc://irc.korin.pink:6697',
+    aria: 'IRC — connect with any client',
+    title: 'internet relay chat',
+    meta: 'irc.korin.pink:6697 · TLS · IRCv3',
+  },
+  {
+    key: 'chat',
+    href: '/chat/',
+    aria: 'chat — IRC in your browser',
+    title: 'web irc client',
+    meta: 'gamja · browser · no setup',
+  },
+  {
+    key: 'wiki',
+    href: '/wiki/',
+    aria: 'wiki — resource center',
+    title: 'resource center',
+    meta: 'tech · trans · coding · ripping',
+  },
+  // files: backend (/files) not deployed yet — add an entry here when it lands.
+];
 ---
 
 <!doctype html>
@@ -11,12 +40,21 @@ import '../styles/landing.css';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>korin.pink</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#07050a" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="canonical" href={`${site}/`} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={`${site}/`} />
+    <meta property="og:title" content="korin.pink" />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="korin.pink" />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
     <link
       rel="alternate"
       type="application/rss+xml"
@@ -32,43 +70,18 @@ import '../styles/landing.css';
       </header>
 
       <nav class="services" aria-label="services">
-        <a class="service" href="irc://irc.korin.pink:6697" aria-label="IRC — connect with any client">
-          <span class="service__key">irc</span>
-          <span class="service__desc">
-            <span class="service__title">internet relay chat</span>
-            <span class="service__meta">irc.korin.pink:6697 · TLS · IRCv3</span>
-          </span>
-          <span class="service__arrow" aria-hidden="true">→</span>
-        </a>
-
-        <a class="service" href="/chat/" aria-label="chat — IRC in your browser">
-          <span class="service__key">chat</span>
-          <span class="service__desc">
-            <span class="service__title">web irc client</span>
-            <span class="service__meta">gamja · browser · no setup</span>
-          </span>
-          <span class="service__arrow" aria-hidden="true">→</span>
-        </a>
-
-        <a class="service" href="/wiki/" aria-label="wiki — resource center">
-          <span class="service__key">wiki</span>
-          <span class="service__desc">
-            <span class="service__title">resource center</span>
-            <span class="service__meta">tech · trans · coding · ripping</span>
-          </span>
-          <span class="service__arrow" aria-hidden="true">→</span>
-        </a>
-
-        <!-- files: backend (/files) not deployed yet — re-enable when it lands
-        <a class="service" href="/files" aria-label="files — upload, download, zip">
-          <span class="service__key">files</span>
-          <span class="service__desc">
-            <span class="service__title">file transfer</span>
-            <span class="service__meta">upload · download · zip · unzip</span>
-          </span>
-          <span class="service__arrow" aria-hidden="true">→</span>
-        </a>
-        -->
+        {
+          services.map((s) => (
+            <a class="service" href={s.href} aria-label={s.aria}>
+              <span class="service__key">{s.key}</span>
+              <span class="service__desc">
+                <span class="service__title">{s.title}</span>
+                <span class="service__meta">{s.meta}</span>
+              </span>
+              <span class="service__arrow" aria-hidden="true">→</span>
+            </a>
+          ))
+        }
       </nav>
 
       <footer>
@@ -81,7 +94,5 @@ import '../styles/landing.css';
         <span class="footer__version">v0.0.4</span>
       </footer>
     </main>
-
-    <script type="module" src="/main.js" is:inline></script>
   </body>
 </html>
