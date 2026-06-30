@@ -102,6 +102,7 @@ export default defineConfig({
         {
           label: 'Lineage (legacy)',
           items: [
+            { slug: 'wiki/creating-a-secure-password' },
             { slug: 'wiki/contributor-program' },
             { slug: 'wiki/privacy-policy' },
             { slug: 'wiki/gitlab-public-docs' },
