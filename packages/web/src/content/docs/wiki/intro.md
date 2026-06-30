@@ -15,7 +15,7 @@ To do something exactly would require Haskell (their page is built on Hykell), a
 
 SEO in terms of today
 
-[How to Build an App That Doesn’t Fall Apart Two Days Later](/wiki/blog-posts/scraps/how-to-build-an-app-that-doesnt-fall-apart-two-days-later)
+How to Build an App That Doesn’t Fall Apart Two Days Later
 
 _Relevant links:_
 

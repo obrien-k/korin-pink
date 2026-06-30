@@ -5,7 +5,7 @@ title: "Blog Ideas"
 
 [Fictionalized Corporations in Real Life](/wiki/blog-posts/scraps/fictionalized-corporations-in-real-life)
 
-[How to Build an App That Doesn’t Fall Apart Two Days Later](/wiki/blog-posts/scraps/how-to-build-an-app-that-doesnt-fall-apart-two-days-later)
+How to Build an App That Doesn’t Fall Apart Two Days Later
 
 Introduction to Site
 

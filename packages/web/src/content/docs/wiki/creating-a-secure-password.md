@@ -1,9 +1,7 @@
 ---
 title: "Creating a Secure Password"
-description: "Password strategy, requirements, and manager options — ported from the What.CD community wiki."
+description: "Password strategy, requirements, and manager options."
 ---
-
-*Ported from the What.CD community wiki (2015-10-01).*
 
 Creating a secure password is the first line of defense in safeguarding your personal information. Having a weak password or a weak password strategy leaves your account vulnerable to unauthorized access which will have obvious negative consequences. However creating a secure password may actually entail modifying your overall password strategy for your digital self. **Using the same password for all your accounts is the absolute worst strategy.** Adopting a stronger strategy including randomly generated passwords is a much better strategy but likely requires a password manager client so that you can keep track of everything.
 
@@ -65,7 +63,7 @@ Using a password manager can be extremely helpful in creating strong secure pass
 
 #### Online
 
-- [Last Pass](https://lastpass.com/) (apps for all major mobile devices and desktop platforms)
+- [Proton Pass](https://proton.me/pass) (apps for all major mobile devices and desktop platforms)
 
 #### Windows
 
@@ -93,6 +91,6 @@ Using a password manager can be extremely helpful in creating strong secure pass
 
 ## Further considerations
 
-Using a password manager that can function across all your devices will make it easy to get into the habit of using long passphrases. Last Pass, for example, works on all platforms and requires very little configuration but may require a subscription. KeePass can work across all major platforms at no cost but requires configuration that some users may find daunting (installation of plug-ins, browser extensions, and use of cloud storage).
+Using a password manager that can function across all your devices will make it easy to get into the habit of using long passphrases. Proton Pass, for example, works on all platforms and requires very little configuration but may require a subscription. KeePass can work across all major platforms at no cost but requires configuration that some users may find daunting (installation of plug-ins, browser extensions, and use of cloud storage).
 
 Using a strong password will greatly reduce the chances your account will become compromised which enhances the overall security of your accounts. With all these tools available, there is no reason you need to continue to use weak and simple passwords.
