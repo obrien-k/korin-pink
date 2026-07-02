@@ -1,0 +1,20 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Manifest-driven (release-please-config.json + .release-please-manifest.json).
+      # GITHUB_TOKEN is enough to open the release PR and cut the tag; releases it
+      # creates won't re-trigger workflows, which is fine — deploy.yml is manual-dispatch.
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
