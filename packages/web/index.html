@@ -62,8 +62,11 @@
     <footer>
       <span class="footer__network">stellar network</span>
       <span class="footer__sep" aria-hidden="true">·</span>
+      <!-- CRS flips to active once stellar-api v1+ consumes IRCScore in production
+           (CONTEXT.md v1.0.0 milestone). The version tracks the CRS PRD
+           (stellar-api docs/prd/01), not this repo's release tag. -->
       <a class="footer__crs" href="https://stellar.example.com/reputation" target="_blank" rel="noopener">
-        CRS active
+        CRS pending
       </a>
       <span class="footer__sep" aria-hidden="true">·</span>
       <span class="footer__version">v0.0.4</span>
