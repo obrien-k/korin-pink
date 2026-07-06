@@ -3,6 +3,8 @@ title: "Creating a Secure Password"
 description: "Password strategy, requirements, and manager options."
 ---
 
+## Creating a Secure Password
+
 Creating a secure password is the first line of defense in safeguarding your personal information. Having a weak password or a weak password strategy leaves your account vulnerable to unauthorized access which will have obvious negative consequences. However creating a secure password may actually entail modifying your overall password strategy for your digital self. **Using the same password for all your accounts is the absolute worst strategy.** Adopting a stronger strategy including randomly generated passwords is a much better strategy but likely requires a password manager client so that you can keep track of everything.
 
 ## Weak passwords
