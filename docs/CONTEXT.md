@@ -18,13 +18,12 @@ Current project and domain context for `obrien-k/korin-pink`.
   - `GET /irc/metrics` — stellar-api pull, auth: `x-pull-key: STELLAR_PULL_KEY`
   - `POST /irc/verify` — bridge relays a member's `!verify <code>`, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`; proxies to `stellar.verifyNick` → stellar-api `POST /api/users/irc-nick/verify` (ADR-0015)
   - In-process store; no DB dependency for metrics
-- stellar-api `feat/korin-pink`: `User.ircNick`, `PUT /users/:id/irc-nick`, `ircJob.ts` (polls every 5min), IRCScore in CRS REGISTRY
+- stellar-api (on trunk since #163): `User.ircNick`, `PUT /users/:id/irc-nick`, `ircJob.ts` (polls every 5min), IRCScore in CRS REGISTRY
 
 **Immediate next steps:**
 1. First-run Ergo on GCP Compute Engine; set oper password and register bridge account via SASL
 2. End-to-end smoke test: bridge connects → flush → `GET /irc/metrics` returns data
 3. End-to-end verify test: member sends `!verify <code>` privately → bridge → `POST /irc/verify` → stellar links the nick
-4. Merge stellar-api `feat/korin-pink` → `pnpm db:generate && pnpm db:migrate && pnpm db:seed-wiki`
 
 ---
 
@@ -60,7 +59,7 @@ Current project and domain context for `obrien-k/korin-pink`.
 korin.pink is Stellar's IRC infrastructure. IRC activity feeds the CRS:
 
 ```
-IRCScore = activity × consistency × channelQuality   (cap = 6)
+IRCScore = activity × consistency × channelQuality   (cap = 2 — deliberately thin until real IRC traffic; stellar #141)
 
 activity       = log1p(messageCount)   / log1p(50)
 consistency    = presenceSeconds / windowDurationSeconds
