@@ -46,6 +46,10 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Stellar',
+          items: [{ autogenerate: { directory: 'wiki/stellar' } }],
+        },
+        {
           label: 'Code Noobs',
           collapsed: false,
           items: [
@@ -60,21 +64,6 @@ export default defineConfig({
             { slug: 'wiki/code-noobs-archive/linux-free-open-source-software-101' },
             { slug: 'wiki/code-noobs-archive/stencil-cli-and-postman' },
             { slug: 'wiki/code-noobs-archive/2018-year-in-review' },
-          ],
-        },
-        {
-          label: 'Audio & Gear',
-          items: [
-            { slug: 'wiki/audiophile' },
-            { slug: 'wiki/stereo-setup' },
-            { slug: 'wiki/sapphire-zen-build' },
-          ],
-        },
-        {
-          label: 'Enthusiast',
-          items: [
-            { slug: 'wiki/cinephile' },
-            { slug: 'wiki/ejuice-supplies-and-tips' },
           ],
         },
         {
@@ -97,16 +86,6 @@ export default defineConfig({
           items: [
             { slug: 'wiki/jp' },
             { slug: 'wiki/jp/godai' },
-          ],
-        },
-        {
-          label: 'Lineage (legacy)',
-          items: [
-            { slug: 'wiki/creating-a-secure-password' },
-            { slug: 'wiki/misc/contributor-program' },
-            { slug: 'wiki/privacy-policy' },
-            { slug: 'wiki/misc/gitlab-public-docs' },
-            { slug: 'wiki/misc/digital-nomad-integration' },
           ],
         },
         {
