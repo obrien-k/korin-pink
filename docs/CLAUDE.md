@@ -23,7 +23,7 @@
 korin-pink/             ← you are here (impl repo)
   packages/
     api/                ← Fastify + TS (files, wiki, IRC metrics + verify, AI, mail)
-    web/                ← minimal static portal
+    web/                ← Astro app: landing portal (/) + Starlight wiki (/wiki/*)
     irc/                ← Ergo IRCd config + Dockerfile
     irc-bridge/         ← Node bot: Ergo → metrics + !verify relay → stellar-api
   infra/

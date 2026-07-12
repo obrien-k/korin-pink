@@ -8,7 +8,10 @@ network:
 server:
   name: korin.pink
   listeners:
-    # Plain IRC (redirect clients to TLS)
+    # Plain IRC (redirect clients to TLS). GOTCHA: sts-only sessions get a FAKE
+    # 001 welcome burst and are then disconnected (Ergo playSTSBurst) — a client
+    # here believes it registered but never can. Internal services (irc-bridge)
+    # must use :6697 via the compose network alias, never this listener.
     ":6667":
       sts-only: true
     # TLS IRC
@@ -74,6 +77,11 @@ server:
     # Kept in step with the DOCKER-USER connlimit (packages/harden firewall).
     max-concurrent-connections: 8
     max-connections-per-duration: 30 per 10m
+    # First-party internal services (irc-bridge on the docker network) are exempt
+    # so a reconnect flap can't trip the per-IP throttle and mask its real cause.
+    exempted:
+      - localhost
+      - "172.16.0.0/12"
 
   ip-cloaking:
     enabled: true

@@ -2,9 +2,10 @@
 # Build the gamja web IRC client into the static portal at /chat/.
 #
 # gamja (https://github.com/Libera-Chat/gamja) is built from source with Parcel
-# and served as static files under the /chat/ sub-path of the korin.pink portal —
-# mirroring how the Docusaurus wiki builds into /wiki/. One built bundle works in
-# every environment; only config.json (loaded at runtime by gamja) differs:
+# and served as static files under the /chat/ sub-path of the korin.pink portal.
+# It builds into the Astro app's public/chat so `astro build` ships it in dist/.
+# One built bundle works in every environment; only config.json (loaded at
+# runtime by gamja) differs:
 #   - dev : server.url "/socket"            → Caddy reverse-proxies to Ergo's
 #                                              internal ws listener (ergo:8098)
 #   - prod: server.url wss://irc.korin.pink:8097 → direct to Ergo's TLS listener
@@ -27,7 +28,9 @@ GAMJA_SHA="${GAMJA_SHA:-fd63c169ed3dd3daa010dcc97413cfd6793ba4f6}"   # expected 
 CHAT_ENV="${CHAT_ENV:-prod}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
-portal_chat="$here/../web/chat"
+# Output into the Astro app's public/ so `astro build` copies it to dist/chat
+# (and `astro dev`/`preview` serve it too). git-ignored; built fresh each deploy.
+portal_chat="$here/../web/public/chat"
 work="$here/.gamja-src"
 
 if [ ! -f "$here/config.$CHAT_ENV.json" ]; then
@@ -60,4 +63,4 @@ cp -r "$work/dist/." "$portal_chat/"
 echo "==> Writing config.json (env=$CHAT_ENV)"
 cp "$here/config.$CHAT_ENV.json" "$portal_chat/config.json"
 
-echo "==> Done: gamja built into packages/web/chat (served at /chat/), config=$CHAT_ENV"
+echo "==> Done: gamja built into packages/web/public/chat (served at /chat/), config=$CHAT_ENV"

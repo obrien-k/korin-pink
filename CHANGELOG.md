@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+- **Web portal + wiki migrated to Astro & Astro Starlight** (ADR-005). The static
+  `packages/web` portal and the standalone Docusaurus `wiki/` are now one Astro app:
+  the landing page at `/` (`src/pages/index.astro`, a 1:1 port of the old terminal
+  portal) and the wiki under `src/content/docs/wiki/**` serving at `/wiki/*` — one
+  `pnpm --filter @korin/web build` → a single `dist/`. Removed the wiki build-and-copy
+  CI step, the separate Docusaurus nginx container, and the Caddy `/wiki/*` proxy
+  (the catch-all `file_server` now serves it). `packages/web` joined the pnpm
+  workspace (Node 22); gamja now builds into `public/chat`. All `/wiki/` URLs,
+  `/irc/feed.xml`, and `/chat/` are preserved.
+
 ## [v0.2.0] - 2026-06-21
 
 ### Added
