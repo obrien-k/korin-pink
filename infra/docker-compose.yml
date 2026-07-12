@@ -24,7 +24,14 @@ services:
       # the TLS certs above. See docs/deploy/vps.md.
       - ${ERGO_CONF:-../packages/irc/ergo.yaml}:/etc/ergo.yaml:ro
     restart: unless-stopped
-    networks: [korin]
+    networks:
+      korin:
+        # Alias ergo under its public cert hostname so first-party services
+        # (irc-bridge) can connect over TLS :6697 internally with hostname
+        # verification intact. The plaintext :6667 is NOT an internal option —
+        # it's sts-only and disconnects every client after a fake 001 burst.
+        aliases:
+          - ${IRC_DOMAIN:-irc.korin.pink}
 
   api:
     build:
@@ -44,7 +51,9 @@ services:
       context: ../packages/irc-bridge
     env_file: ../.env
     environment:
-      - IRC_HOST=ergo
+      # Dial ergo by its cert hostname (network alias above), never `ergo` —
+      # Node TLS rejects the mismatched cert. IRC_TLS defaults to true.
+      - IRC_HOST=${IRC_DOMAIN:-irc.korin.pink}
       - IRC_PORT=6697
       - KORIN_API_URL=http://api:3000
     restart: unless-stopped
