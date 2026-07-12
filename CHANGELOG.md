@@ -45,6 +45,7 @@
 ### Changed
 
 * **api:** one shared-secret guard + one config seam ([#25](https://github.com/obrien-k/korin-pink/issues/25)) ([037b9fd](https://github.com/obrien-k/korin-pink/commit/037b9fdd7470a80396aefcbcb397fdb6beab6199))
+* **web:** migrate the portal + wiki to Astro & Astro Starlight (ADR-005) — one `pnpm --filter @korin/web build` now produces a single `dist/` for the landing page (`/`), the Starlight wiki (`/wiki/*`), and gamja chat (`/chat/`), retiring the standalone Docusaurus container and the Caddy `/wiki/*` proxy. All `/wiki/`, `/irc/feed.xml`, and `/chat/` URLs are preserved. ([#50](https://github.com/obrien-k/korin-pink/issues/50))
 
 
 ### Docs
@@ -60,19 +61,6 @@
 * **ledger:** state domain nomenclature positively; add Neutralpass ([#37](https://github.com/obrien-k/korin-pink/issues/37)) ([3db9c71](https://github.com/obrien-k/korin-pink/commit/3db9c71e851dc2d621df215928e9d60661ab66e1))
 * **wiki:** Code Noobs Root + IRC as equal entry points; pink social card ([#43](https://github.com/obrien-k/korin-pink/issues/43)) ([c355851](https://github.com/obrien-k/korin-pink/commit/c355851c55c019253bd5a3b71b6b9c903a47439c))
 * **wiki:** port lineage-legacy pages from wuu.bi + wire sidebar ([#36](https://github.com/obrien-k/korin-pink/issues/36)) ([cf5f8c3](https://github.com/obrien-k/korin-pink/commit/cf5f8c3fb3585e91875a003ba2026cbe742648a6))
-
-## [Unreleased]
-
-### Changed
-- **Web portal + wiki migrated to Astro & Astro Starlight** (ADR-005). The static
-  `packages/web` portal and the standalone Docusaurus `wiki/` are now one Astro app:
-  the landing page at `/` (`src/pages/index.astro`, a 1:1 port of the old terminal
-  portal) and the wiki under `src/content/docs/wiki/**` serving at `/wiki/*` — one
-  `pnpm --filter @korin/web build` → a single `dist/`. Removed the wiki build-and-copy
-  CI step, the separate Docusaurus nginx container, and the Caddy `/wiki/*` proxy
-  (the catch-all `file_server` now serves it). `packages/web` joined the pnpm
-  workspace (Node 22); gamja now builds into `public/chat`. All `/wiki/` URLs,
-  `/irc/feed.xml`, and `/chat/` are preserved.
 
 ## [v0.2.0] - 2026-06-21
 
@@ -223,7 +211,6 @@
 ### Note
 `korin-omnibus` remains the private historical repository for overall schema/domain planning, but `korin-pink` serves as the public implementation monorepo.
 
-[Unreleased]: https://github.com/obrien-k/korin-pink/compare/v0.2.0...HEAD
 [v0.2.0]: https://github.com/obrien-k/korin-pink/compare/v0.1.2...v0.2.0
 [v0.1.2]: https://github.com/obrien-k/korin-pink/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/obrien-k/korin-pink/compare/v0.1.0...v0.1.1
