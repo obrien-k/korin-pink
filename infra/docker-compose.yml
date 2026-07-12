@@ -24,7 +24,14 @@ services:
       # the TLS certs above. See docs/deploy/vps.md.
       - ${ERGO_CONF:-../packages/irc/ergo.yaml}:/etc/ergo.yaml:ro
     restart: unless-stopped
-    networks: [korin]
+    networks:
+      korin:
+        # Alias ergo under its public cert hostname so first-party services
+        # (irc-bridge) can connect over TLS :6697 internally with hostname
+        # verification intact. The plaintext :6667 is NOT an internal option —
+        # it's sts-only and disconnects every client after a fake 001 burst.
+        aliases:
+          - ${IRC_DOMAIN:-irc.korin.pink}
 
   api:
     build:
@@ -44,7 +51,9 @@ services:
       context: ../packages/irc-bridge
     env_file: ../.env
     environment:
-      - IRC_HOST=ergo
+      # Dial ergo by its cert hostname (network alias above), never `ergo` —
+      # Node TLS rejects the mismatched cert. IRC_TLS defaults to true.
+      - IRC_HOST=${IRC_DOMAIN:-irc.korin.pink}
       - IRC_PORT=6697
       - KORIN_API_URL=http://api:3000
     restart: unless-stopped
@@ -64,15 +73,11 @@ services:
     networks: [korin]
     depends_on: [api]
 
-  wiki:
-    build:
-      context: ../wiki
-    restart: unless-stopped
-    networks: [korin]
-    # Opt-in only. The Docusaurus build is memory-hungry and OOMs on a 1 GB VPS,
-    # and the wiki is already served from Cloudflare Pages (/wiki) in production.
-    # Default `docker compose up` skips it; bring it in with `--profile wiki`.
-    profiles: [wiki]
+  # The wiki is no longer a separate container: it's part of the unified Astro
+  # build (packages/web/dist/wiki/**), served by Caddy's catch-all below. Build
+  # the site on the box before `docker compose up`:
+  #   pnpm install && packages/chat/build.sh && pnpm --filter @korin/web build
+  # (see docs/deploy/vps.md).
 
   caddy:
     image: caddy:2-alpine
@@ -82,7 +87,9 @@ services:
       - "8443:443/udp"   # HTTP/3
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../packages/web:/srv/web:ro
+      # The built Astro site (landing + /wiki + /chat). Build it on the box first
+      # (see docs/deploy/vps.md); an unbuilt dist/ means Caddy serves 404s.
+      - ../packages/web/dist:/srv/web:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
@@ -92,12 +99,6 @@ services:
     depends_on:
       api:
         condition: service_started
-      # Not required: with the `wiki` profile off, caddy still starts and the
-      # /wiki/* route simply 502s (the wiki lives on Pages). With `--profile
-      # wiki`, caddy waits for the local wiki container.
-      wiki:
-        condition: service_started
-        required: false
 
 volumes:
   caddy_data:

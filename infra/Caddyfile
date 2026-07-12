@@ -1,8 +1,8 @@
 # korin.pink front-door / minified orchestrator.
 # Caddy is the single entrypoint; each service is routed by path prefix:
 #   /api/*   -> Fastify API container
-#   /wiki/*  -> Docusaurus wiki container (static, baseUrl /wiki/)
-#   /*       -> the static portal (the orchestrator index page)
+#   /*       -> the unified Astro static build (landing at /, wiki at /wiki/*,
+#               chat at /chat/) served from /srv/web (packages/web/dist)
 # New services (e.g. /files, /ai) slot in as additional handle blocks.
 
 {$DOMAIN:localhost} {
@@ -11,15 +11,13 @@
         reverse_proxy api:3000
     }
 
-    # Wiki — Docusaurus is built with baseUrl /wiki/, so the prefix is kept.
+    # Wiki is now part of the Astro build (dist/wiki/**), served by the catch-all
+    # file_server below — no separate container/proxy. Normalise /wiki → /wiki/.
     redir /wiki /wiki/
-    handle /wiki/* {
-        reverse_proxy wiki:80
-    }
 
-    # Chat — the gamja web IRC client (static, built into packages/web/chat by
-    # packages/chat/build.sh). Its assets are served by the catch-all below; this
-    # only normalises /chat → /chat/.
+    # Chat — the gamja web IRC client (static, built into packages/web/public/chat
+    # by packages/chat/build.sh, copied into dist/chat by `astro build`). Served by
+    # the catch-all below; this only normalises /chat → /chat/.
     redir /chat /chat/
 
     # IRC-over-WebSocket for the gamja client (dev config.json: server.url

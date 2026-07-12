@@ -126,8 +126,18 @@ jobs:
           service: korin-irc-bridge
           region: us-central1
           image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/korin/irc-bridge:${{ github.sha }}
+      # Build the unified static site (landing + Starlight wiki + gamja chat) so
+      # the bucket gets the compiled dist/, not Astro source.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: packages/chat/build.sh
+      - run: pnpm --filter @korin/web build
       - uses: google-github-actions/setup-gcloud@v2
-      - run: gsutil -m rsync -r -d ./packages/web gs://korin-pink-web
+      - run: gsutil -m rsync -r -d ./packages/web/dist gs://korin-pink-web
 
   # ── Deploy: AWS ────────────────────────────────────────────────────────────
   deploy-aws:
@@ -144,7 +154,17 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - run: aws ecs update-service --cluster korin --service korin-api --force-new-deployment
       - run: aws ecs update-service --cluster korin --service korin-irc-bridge --force-new-deployment
-      - run: aws s3 sync ./packages/web s3://korin-pink-web --delete
+      # Build the unified static site (landing + Starlight wiki + gamja chat) so
+      # S3 gets the compiled dist/, not Astro source.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: packages/chat/build.sh
+      - run: pnpm --filter @korin/web build
+      - run: aws s3 sync ./packages/web/dist s3://korin-pink-web --delete
 
   # ── Deploy: VPS ────────────────────────────────────────────────────────────
   deploy-vps:
