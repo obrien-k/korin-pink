@@ -1,0 +1,12 @@
+---
+title: "五大"
+---
+The Five Elements (五大, Godai)
+
+In Japanese philosophy, there are five primary elements that are believed to make up everything in the universe. These are:
+
+    1.    Earth (土, Tsuchi or Do): Solidity and stability. Physical objects and matter.
+    2.    Water (水, Mizu or Sui): Fluidity, adaptability, and change. Emotions and intuition.
+    3.    Fire (火, Hi or Ka): Energy, force, and movement. Passion, creativity, and motivation.
+    4.    Wind (風, Kaze or Fū): Freedom, expansion, and movement. Intellect and communication.
+    5.    Void or Ether (空, Kū or Sora): Represents the absence of all elements, the space in which everything exists. It is associated with spirituality, creativity, and the boundless potential for growth and change.

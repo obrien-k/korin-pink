@@ -1,19 +1,21 @@
 # Deploy: Cloudflare Pages (static web portal)
 
-This is the fastest path to getting **korin.pink** online. It publishes the
-static portal in `packages/web/` to Cloudflare Pages and points your existing
-Cloudflare DNS at it. The IRC/API/Ergo backend is a separate, later step
-(it will live on a subdomain such as `api.korin.pink` / `irc.korin.pink`).
+This is the fastest path to getting **korin.pink** online. It builds the Astro
+app in `packages/web/` and publishes the static `dist/` to Cloudflare Pages,
+pointing your existing Cloudflare DNS at it. The IRC/API/Ergo backend is a
+separate, later step (it will live on a subdomain such as `api.korin.pink` /
+`irc.korin.pink`).
 
 What's already wired in this repo:
-- `packages/web/` — the static portal (`index.html`, `styles.css`, `feed.xml`,
-  `main.js`).
-- `wiki/` — the Docusaurus wiki (`baseUrl: /wiki/`). The build command below
-  compiles it into `packages/web/wiki/` so the portal and wiki ship as one
-  bundle and `korin.pink/wiki/` works — matching the self-hosted Caddy routing.
-- `packages/web/_redirects` — maps `/irc/feed.xml` → `/feed.xml` on Pages.
+- `packages/web/` — an Astro app: the landing portal at `/` (`src/pages/index.astro`)
+  and the community wiki (Astro Starlight) under `src/content/docs/wiki/**`,
+  which builds to `/wiki/*`. One `pnpm --filter @korin/web build` produces a
+  single `packages/web/dist/` with the portal and wiki — matching the
+  self-hosted Caddy routing.
+- `packages/web/public/_redirects` — maps `/irc/feed.xml` → `/feed.xml` on Pages.
 - `.github/workflows/deploy-web.yml` — optional GitHub Actions deploy (builds
-  the wiki, then publishes), dormant until you set `DEPLOY_WEB=true` (Option B).
+  gamja + the Astro site, then publishes), dormant until you set
+  `DEPLOY_WEB=true` (Option B).
 
 You only need **one** of the two options below.
 
@@ -44,14 +46,13 @@ the project.
 2. Authorize the Cloudflare GitHub App and select `obrien-k/korin-pink`.
 3. Build settings:
    - **Production branch:** `main`
-   - **Framework preset:** **None** (the portal is hand-built static HTML; we
-     supply our own build command for the wiki, so there's nothing to detect)
-   - **Build command:** (builds the wiki into `/wiki/` and the gamja web client
-     into `/chat/`, both inside the portal bundle)
+   - **Framework preset:** **Astro**
+   - **Build command:** (builds the gamja web client into `public/chat/` first,
+     then the Astro site — landing, wiki, and chat — into `dist/`)
      ```
-     cd wiki && npm ci && npm run build && rm -rf ../packages/web/wiki && cp -r build ../packages/web/wiki && cd ../packages/chat && ./build.sh
+     pnpm install && packages/chat/build.sh && pnpm --filter @korin/web build
      ```
-   - **Build output directory:** `packages/web`
+   - **Build output directory:** `packages/web/dist`
 4. **Save and Deploy.** Cloudflare builds a `*.pages.dev` preview URL. Confirm
    the portal (`/`), the wiki (`/wiki/`), and the chat client (`/chat/`) render there.
 
@@ -74,7 +75,7 @@ or to gate releases through CI).
      `CF_PAGES_PROJECT` if you named the project something other than
      `korin-pink`.
 3. Push to `main` (or run the **deploy-web** workflow manually). It runs
-   `wrangler pages deploy packages/web`.
+   `wrangler pages deploy packages/web/dist`.
 
 ---
 

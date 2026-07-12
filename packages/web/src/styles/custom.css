@@ -1,0 +1,13 @@
+/* Starlight theme overrides — pink accent matching the korin.pink portal
+   brand token (--pink #e03a96 from the landing page). Replaces the default
+   Docusaurus/Infima green that came with the old wiki. */
+:root {
+  --sl-color-accent-low: #3a0f26;
+  --sl-color-accent: #c2317f;
+  --sl-color-accent-high: #f0a8cf;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #f6d4e6;
+  --sl-color-accent: #c2317f;
+  --sl-color-accent-high: #6b1741;
+}

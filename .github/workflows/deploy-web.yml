@@ -21,11 +21,10 @@ on:
   push:
     branches: [main]
     paths:
+      # The Astro app now contains both the landing page and the wiki
+      # (src/content/docs/wiki/**), so packages/web/** covers wiki changes too.
       - 'packages/web/**'
       - 'packages/chat/**'
-      # The wiki is built into packages/web/wiki at deploy time, so its source
-      # must also trigger a deploy — otherwise wiki-only changes never ship.
-      - 'wiki/**'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
@@ -39,26 +38,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: pnpm
 
-      # Build the Docusaurus wiki into the portal so /wiki/ is served from the
-      # same origin (mirrors the Caddy front-door routing in the self-hosted stack).
-      - name: Build wiki into portal (/wiki)
-        run: |
-          cd wiki
-          npm ci
-          npm run build
-          rm -rf ../packages/web/wiki
-          cp -r build ../packages/web/wiki
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
 
-      # Build the gamja web IRC client into the portal so /chat/ ships in the same
-      # bundle (clones + Parcel-builds gamja; see packages/chat/build.sh).
-      - name: Build gamja web client into portal (/chat)
-        run: |
-          cd packages/chat
-          ./build.sh
+      # Build the gamja web IRC client into packages/web/public/chat FIRST, so the
+      # following `astro build` copies it into dist/chat alongside the wiki and
+      # landing page (clones + Parcel-builds gamja; see packages/chat/build.sh).
+      - name: Build gamja web client (/chat)
+        run: packages/chat/build.sh
+
+      # Build the unified Astro site: landing at /, Starlight wiki at /wiki/*,
+      # gamja at /chat/ — one dist/.
+      - name: Build portal + wiki (Astro)
+        run: pnpm --filter @korin/web build
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -66,6 +65,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
-            pages deploy packages/web
+            pages deploy packages/web/dist
             --project-name=${{ vars.CF_PAGES_PROJECT || 'korin-pink' }}
             --branch=main

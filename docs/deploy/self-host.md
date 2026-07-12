@@ -45,12 +45,14 @@ Services:
 | api | http://localhost/api |
 | IRC | localhost:6697 (TLS) |
 
-The local Docusaurus `wiki` service is **opt-in** (it OOMs small VPSes and is
-served from Cloudflare Pages in prod). To run it locally — `/wiki` will 502
-without it — add the profile:
+The wiki is no longer a separate service — it's part of the Astro build
+(`packages/web/dist/wiki/**`) that Caddy serves at `/wiki/`. Build the site on
+the box before bringing the stack up (an empty `dist/` makes Caddy serve 404s):
 
 ```bash
-TLS_DIR=./tls DOMAIN=localhost docker compose --profile wiki up --build
+pnpm install
+CHAT_ENV=dev packages/chat/build.sh   # gamja → public/chat (for /chat/)
+pnpm --filter @korin/web build        # → packages/web/dist
 ```
 
 ## 4. expose with ngrok
