@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.3.0](https://github.com/obrien-k/korin-pink/compare/korin-pink-v0.2.0...korin-pink-v0.3.0) (2026-07-12)
+
+
+### Added
+
+* **api:** fully stub out api routes and libraries ([357e9e0](https://github.com/obrien-k/korin-pink/commit/357e9e0c7ee8c7dc3ee5d64dbd286ec6fb798cbb))
+* **chat:** gamja web IRC client served at /chat/ ([#33](https://github.com/obrien-k/korin-pink/issues/33)) ([fe57ce2](https://github.com/obrien-k/korin-pink/commit/fe57ce2bea05620c2807be06dc8b075de6af639e))
+* **ci:** deploy-vps manages the full stack + verifies the bridge login ([#57](https://github.com/obrien-k/korin-pink/issues/57)) ([#60](https://github.com/obrien-k/korin-pink/issues/60)) ([04f3873](https://github.com/obrien-k/korin-pink/commit/04f38731e5a14f4143a5bced48e82ab62e2b469d))
+* configure docker local dev stack, integrate strict rss parser, and add caddy routing ([3733433](https://github.com/obrien-k/korin-pink/commit/37334338907118a9f7170a9f5503a64315824f9e))
+* **deploy:** live manual-dispatch deploy + inject korin↔stellar secrets ([#17](https://github.com/obrien-k/korin-pink/issues/17)) ([#30](https://github.com/obrien-k/korin-pink/issues/30)) ([b5f3ea4](https://github.com/obrien-k/korin-pink/commit/b5f3ea45cd1a2e07ee6471e7879d6aef75d9e40d))
+* **deploy:** public api.korin.pink front-door on the Vultr box ([#16](https://github.com/obrien-k/korin-pink/issues/16)) ([#27](https://github.com/obrien-k/korin-pink/issues/27)) ([3de5672](https://github.com/obrien-k/korin-pink/commit/3de5672529a4aaac32a12111fd4461de67b0bcb4))
+* **harden:** Ergo login-throttling ([#19](https://github.com/obrien-k/korin-pink/issues/19)) + 2G swap on the 1GB box ([#24](https://github.com/obrien-k/korin-pink/issues/24)) ([235ad9b](https://github.com/obrien-k/korin-pink/commit/235ad9bd07394ec788b3f16fe3e463aec0b5d37b))
+* **irc-bridge:** createBridge(deps) seam + end-to-end smoke ([#20](https://github.com/obrien-k/korin-pink/issues/20)) ([#40](https://github.com/obrien-k/korin-pink/issues/40)) ([7290b1b](https://github.com/obrien-k/korin-pink/commit/7290b1b402f133eeaad7c7898deab437caecf8cf))
+* **irc-bridge:** per-channel message breakdown + pairwise nick-mentions ([#47](https://github.com/obrien-k/korin-pink/issues/47)) ([3236ecc](https://github.com/obrien-k/korin-pink/commit/3236ecc1b8199e5d72ba50a0146be1cb0aa75ddb)), closes [#42](https://github.com/obrien-k/korin-pink/issues/42)
+* **irc:** relay nick verification to stellar (ADR-0015) ([#31](https://github.com/obrien-k/korin-pink/issues/31)) ([11cd9b9](https://github.com/obrien-k/korin-pink/commit/11cd9b9a2c684be200c77709437045df451c6922))
+* **irc:** reserve SysOp + core channels, guard oper capabilities ([#11](https://github.com/obrien-k/korin-pink/issues/11)) ([89d2d23](https://github.com/obrien-k/korin-pink/commit/89d2d236e1f924632d449deed3ae624f3479b520))
+* **irc:** resolve IRC nick → stellarId so metrics are account-attributed ([#38](https://github.com/obrien-k/korin-pink/issues/38)) ([463c86f](https://github.com/obrien-k/korin-pink/commit/463c86f99665b04536ebd702b7673cf35c62c81f))
+* **ledger:** scaffold Go accounting service + ADR-004 ([#32](https://github.com/obrien-k/korin-pink/issues/32)) ([6c71691](https://github.com/obrien-k/korin-pink/commit/6c716910d5d6c2e22d0fb69ee1a07b07d81d72bf))
+* **portal:** surface the web IRC client; drop unbuilt services ([be74845](https://github.com/obrien-k/korin-pink/commit/be748451a342d983743a2f4ff055719e1e2f9b55))
+* **scaffold:** init korin-pink monorepo ([6e344e5](https://github.com/obrien-k/korin-pink/commit/6e344e5da01dac2dd9776d73377b79f92a56b4fb))
+* **v0.1.1:** irc-bridge, metrics API, wiki repoint, nginx fix ([26ea5d0](https://github.com/obrien-k/korin-pink/commit/26ea5d084c2729ed56053444c9a95faa903a1e60))
+* **web:** serve wiki at /wiki + publish-ready repo + fix Pages build ([#3](https://github.com/obrien-k/korin-pink/issues/3)) ([8e1e4d9](https://github.com/obrien-k/korin-pink/commit/8e1e4d9d806132cd9b1a72d2af20ab30239c8b5c))
+
+
+### Fixed
+
+* **harden:** correct three Ubuntu 24.04 boot-script bugs ([#9](https://github.com/obrien-k/korin-pink/issues/9)) ([f2458b4](https://github.com/obrien-k/korin-pink/commit/f2458b458a199a4459ba229588f62babcf4a6b03))
+* **harden:** detect the public NIC at runtime, don't hardcode eth0 ([#29](https://github.com/obrien-k/korin-pink/issues/29)) ([55d500a](https://github.com/obrien-k/korin-pink/commit/55d500a8b594e22057f499464c15dffcd1e1d81e))
+* **harden:** DOCKER-USER perimeter strangled container egress + web ingress ([#28](https://github.com/obrien-k/korin-pink/issues/28)) ([b7d7f86](https://github.com/obrien-k/korin-pink/commit/b7d7f86d73160ca1f9e04ad0948094bfbf823d0a))
+* **harden:** make IRC_ENABLED actually gate the firewall + fail2ban jail ([#6](https://github.com/obrien-k/korin-pink/issues/6)) ([13ec168](https://github.com/obrien-k/korin-pink/commit/13ec1686874710726cfd314f6dcaa96d2f6a5e73))
+* **harden:** match fail2ban filter to real Ergo 2.18 logs ([#19](https://github.com/obrien-k/korin-pink/issues/19)) ([#22](https://github.com/obrien-k/korin-pink/issues/22)) ([787e495](https://github.com/obrien-k/korin-pink/commit/787e4953dc9561aa18d98d2cb98f80cb813207b0))
+* **infra:** connect irc-bridge over TLS via cert-hostname network alias ([#58](https://github.com/obrien-k/korin-pink/issues/58)) ([6f44dfa](https://github.com/obrien-k/korin-pink/commit/6f44dfabd12ea99eb2008e4045ac9438ab67b9dc))
+* **infra:** make wiki service opt-in via compose profile ([#12](https://github.com/obrien-k/korin-pink/issues/12)) ([3301df5](https://github.com/obrien-k/korin-pink/commit/3301df561cda05d34ed15e1db356797b770d197f))
+* **irc:** boot Ergo without secrets by disabling empty-password opers ([31e4724](https://github.com/obrien-k/korin-pink/commit/31e47245beffb866dba7a08b14fe1b25246d03bc))
+* **irc:** launch our ergo.yaml in Docker, not stock Ergo ([#13](https://github.com/obrien-k/korin-pink/issues/13)) ([58f37c6](https://github.com/obrien-k/korin-pink/commit/58f37c6240a82efcf989d4dc8abf7d9dbfa90969))
+* **irc:** make ergo.yaml actually boot + add real-binary boot test ([#10](https://github.com/obrien-k/korin-pink/issues/10)) ([32967bf](https://github.com/obrien-k/korin-pink/commit/32967bf2175dbdfbe2ff97b475aeb12881166579))
+* **irc:** restore opers via box-local mounted config (no committed secrets) ([#35](https://github.com/obrien-k/korin-pink/issues/35)) ([017f0ed](https://github.com/obrien-k/korin-pink/commit/017f0ed849665476ee0dc1ca713c98531766b7ba))
+* **stellar:** align integration to ADR-0013 contract (pull metrics, push announce) ([912553d](https://github.com/obrien-k/korin-pink/commit/912553d4164c1002235d7df827500e2d9bf8e974))
+* **stellar:** align integration to ADR-0013 contract (pull metrics, push announce) ([e6ac686](https://github.com/obrien-k/korin-pink/commit/e6ac686d4342109809934aeef0a0d36d95e5f8f3))
+* **wiki:** trim homepage features to IRC.KORIN.PINK/WIKI ([#8](https://github.com/obrien-k/korin-pink/issues/8)) ([4f66918](https://github.com/obrien-k/korin-pink/commit/4f6691801b323e9d7f95a4d473c4767e270a9794))
+
+
+### Changed
+
+* **api:** one shared-secret guard + one config seam ([#25](https://github.com/obrien-k/korin-pink/issues/25)) ([037b9fd](https://github.com/obrien-k/korin-pink/commit/037b9fdd7470a80396aefcbcb397fdb6beab6199))
+
+
+### Docs
+
+* add repository lamp-post ([74284c6](https://github.com/obrien-k/korin-pink/commit/74284c631fa2db46951f48bda3dfde2968507569))
+* align IRC docs with shipped verify feature + adopt docs/adr/ ([#39](https://github.com/obrien-k/korin-pink/issues/39)) ([4539244](https://github.com/obrien-k/korin-pink/commit/4539244380060e8cf5f8c9bba0d5faec9586b352))
+* **changelog:** consolidate the IRC deployment batch ([#9](https://github.com/obrien-k/korin-pink/issues/9)–[#14](https://github.com/obrien-k/korin-pink/issues/14)) ([#15](https://github.com/obrien-k/korin-pink/issues/15)) ([cf92b8a](https://github.com/obrien-k/korin-pink/commit/cf92b8a9a42ac24d27d86f4adbd4b6cb39c10b6b))
+* **context:** prune shipped stellar merge step; fix footer CRS state + cap drift ([#49](https://github.com/obrien-k/korin-pink/issues/49)) ([e8e9c7a](https://github.com/obrien-k/korin-pink/commit/e8e9c7abc31bf669a374e23ef4ac043c2aaacf30))
+* **deploy:** document IRC operator login (SASL) + first-run gotchas ([#56](https://github.com/obrien-k/korin-pink/issues/56)) ([afa993a](https://github.com/obrien-k/korin-pink/commit/afa993a266f680ed3f6ab2ebe8fb158d82483f15))
+* **deploy:** fix cert key perms, certbot deploy-hook, genpasswd ([#14](https://github.com/obrien-k/korin-pink/issues/14)) ([cca09dc](https://github.com/obrien-k/korin-pink/commit/cca09dc21c49196c29743eb253650d6999bbf006))
+* **env:** drop superseded IRC_* lines from .env.example ([#62](https://github.com/obrien-k/korin-pink/issues/62)) ([56a875a](https://github.com/obrien-k/korin-pink/commit/56a875a30c9da6cbcf3d873e89fda49244ea255c))
+* **governance:** canonical-clone map + settle the IRC auth-model question ([#23](https://github.com/obrien-k/korin-pink/issues/23)) ([d0b46f6](https://github.com/obrien-k/korin-pink/commit/d0b46f60b6b8f9fd8b6987805c894fe9f820a807))
+* **ledger:** state domain nomenclature positively; add Neutralpass ([#37](https://github.com/obrien-k/korin-pink/issues/37)) ([3db9c71](https://github.com/obrien-k/korin-pink/commit/3db9c71e851dc2d621df215928e9d60661ab66e1))
+* **wiki:** Code Noobs Root + IRC as equal entry points; pink social card ([#43](https://github.com/obrien-k/korin-pink/issues/43)) ([c355851](https://github.com/obrien-k/korin-pink/commit/c355851c55c019253bd5a3b71b6b9c903a47439c))
+* **wiki:** port lineage-legacy pages from wuu.bi + wire sidebar ([#36](https://github.com/obrien-k/korin-pink/issues/36)) ([cf5f8c3](https://github.com/obrien-k/korin-pink/commit/cf5f8c3fb3585e91875a003ba2026cbe742648a6))
+
 ## [Unreleased]
 
 ### Changed
