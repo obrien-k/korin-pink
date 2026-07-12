@@ -3,10 +3,13 @@
 # Apply as an overlay ON TOP of the universal baseline:
 #
 #   cd infra
-#   API_DOMAIN=api.korin.pink \
-#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build api caddy
+#   ERGO_CONF=./ergo.local.yaml API_DOMAIN=api.korin.pink \
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     up -d --build ergo api irc-bridge caddy
 #
-# (Ergo is already running on the box; api depends_on ergo, so it comes up fine.)
+# (This is what deploy.yml's vps target runs — see vps.md §5b for the CI/manual
+# boundary. ERGO_CONF must come from the shell or infra/.env: compose reads
+# interpolation vars from the project dir, not the env_file containers consume.)
 #
 # What this overlay changes vs the baseline:
 #  - Caddy binds the PUBLIC 80/443 (the base maps 8082/8443 for local dev).

@@ -184,6 +184,27 @@ docker compose logs -f
 > Docusaurus container to memory-OOM a 1 GB box anymore. The Astro build is
 > light; if RAM is very tight, build it elsewhere and copy `dist/` over.
 
+### 5b. CI/CD deploy (the steady-state path — #57)
+
+Once §6's one-time setup is done, day-to-day deploys are a single
+`workflow_dispatch` of `deploy.yml` (target=`vps`) — no SSH hand-edits. The
+automation boundary:
+
+| CI owns (every deploy) | Manual one-time (never from CI) |
+| --- | --- |
+| render `/opt/korin.pink/.env` from Actions secrets | oper hashes in `infra/ergo.local.yaml` (§6a) |
+| `docker compose up` for ergo + api + irc-bridge + caddy | TLS certs in `infra/tls/` (§4) |
+| verify the bridge SASLs into its account | NickServ/ChanServ registrations (§6b) |
+
+The deploy **fails fast** if the manual first-run files are missing, and fails
+if the bridge doesn't log into its account — a green run means the stack is
+actually serving, not just started. Required Actions secrets/vars are listed in
+`deploy.yml`'s header and `docs/deploy/secrets.md`.
+
+> The rendered `.env` deliberately omits IRC wiring (`IRC_HOST` etc.) — the
+> compose service env owns it (#58). Don't re-add those keys; duplicated config
+> is what caused the register→drop incident.
+
 ## 6. Ergo first-run setup
 
 ### 6a. Oper passwords (box-local config)

@@ -196,9 +196,19 @@ jobs:
             set -euo pipefail
             cd /opt/korin.pink
             git pull origin main
+            # First-run gate (#57): CI owns the .env render and compose up; these
+            # box-provided files are the documented ONE-TIME manual setup and never
+            # come from CI — oper hashes (vps.md §6a), TLS certs (vps.md §4), plus
+            # the NickServ/ChanServ registrations in vps.md §6b (server-side state,
+            # not files). Fail fast with a pointer instead of half-deploying.
+            test -f infra/ergo.local.yaml || { echo "::error::missing infra/ergo.local.yaml (oper hashes) — vps.md §6a"; exit 1; }
+            test -f infra/tls/fullchain.pem -a -f infra/tls/privkey.pem || { echo "::error::missing TLS certs in infra/tls/ — vps.md §4"; exit 1; }
             # Render the box .env from the injected secrets — deploy-managed, never
             # hand-edited. Note STELLAR_API_KEY (korin's outbound Bearer) is fed by
-            # stellar's STELLAR_SERVICE_KEY: same secret, named per side.
+            # stellar's STELLAR_SERVICE_KEY: same secret, named per side. IRC wiring
+            # (IRC_HOST/IRC_PORT/KORIN_API_URL) is deliberately NOT rendered: the
+            # compose service env owns it (see #58 — a stale IRC_HOST=ergo here is
+            # exactly the drift that caused the register→drop incident).
             umask 077
             cat > /opt/korin.pink/.env <<EOF
             DOMAIN=korin.pink
@@ -206,18 +216,34 @@ jobs:
             STELLAR_PULL_KEY=${STELLAR_PULL_KEY}
             STELLAR_API_KEY=${STELLAR_SERVICE_KEY}
             IRC_BRIDGE_SECRET=${IRC_BRIDGE_SECRET}
-            IRC_HOST=ergo
-            IRC_PORT=6697
-            IRC_TLS=true
-            IRC_NICK=stellar-bridge
             IRC_SASL_USER=${IRC_SASL_USER}
             IRC_SASL_PASS=${IRC_SASL_PASS}
-            KORIN_API_URL=http://api:3000
             FLUSH_INTERVAL_MS=60000
             EOF
-            # Bring up the public API behind Caddy (prod overlay). Ergo is managed
-            # separately; the bridge lands with #20 once its Ergo account exists.
+            # Bring up the WHOLE stack (prod overlay): ergo + api + bridge + caddy.
+            # ERGO_CONF is passed on the command line (not the rendered .env) because
+            # compose reads interpolation vars from the shell / project-dir .env, not
+            # from the env_file the containers consume.
             cd infra
-            API_DOMAIN="${API_DOMAIN}" docker compose \
+            ERGO_CONF=./ergo.local.yaml API_DOMAIN="${API_DOMAIN}" docker compose \
               -f docker-compose.yml -f docker-compose.prod.yml \
-              up -d --build api caddy
+              up -d --build ergo api irc-bridge caddy
+            # Recreate the bridge so this deploy's login is provable in the logs
+            # below (a surviving container would show no fresh login line). Costs
+            # one metrics flush window — acceptable for a manual-dispatch deploy.
+            ERGO_CONF=./ergo.local.yaml API_DOMAIN="${API_DOMAIN}" docker compose \
+              -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d --force-recreate irc-bridge
+            # Verify: the bridge must SASL into its account (vps.md §6b step 4)
+            # within 60s — the healthy triplet in ergo's log, not just "container up".
+            for i in $(seq 1 12); do
+              if docker compose logs --since 2m ergo | grep -q "logged into account : ${IRC_SASL_USER}"; then
+                echo "bridge logged into ${IRC_SASL_USER} — deploy verified"
+                docker compose ps
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "::error::bridge never logged into ${IRC_SASL_USER} — recent logs:"
+            docker compose logs --tail 30 irc-bridge ergo
+            exit 1
