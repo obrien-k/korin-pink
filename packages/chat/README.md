@@ -2,13 +2,13 @@
 
 A web view for the Ergo IRC daemon (`packages/irc`), built from
 [gamja](https://github.com/Libera-Chat/gamja) and served as static files under
-the **`/chat/`** sub-path of the korin.pink portal — the same pattern the
-Docusaurus wiki uses for `/wiki/`.
+the **`/chat/`** sub-path of the korin.pink portal.
 
 There is **no runtime container**: `build.sh` compiles gamja into
-`packages/web/chat/`, which the front-door Caddy serves from `/srv/web` (dev) and
-Cloudflare Pages serves from the portal bundle (prod). `packages/web/chat/` is a
-build artifact and is git-ignored, like `packages/web/wiki/`.
+`packages/web/public/chat/`, which `astro build` copies into `dist/chat/`. The
+front-door Caddy serves it from `/srv/web` (dev) and Cloudflare Pages serves it
+from the portal bundle (prod). `packages/web/public/chat/` is a build artifact
+and is git-ignored.
 
 ## Build
 
@@ -19,9 +19,9 @@ CHAT_ENV=dev ./build.sh # dev config — for the self-hosted Caddy stack
 ```
 
 `build.sh` clones gamja at `GAMJA_REF` (default `master`), runs the Parcel build
-with `--public-url /chat/`, copies `dist/` into `packages/web/chat/`, and drops
-the env-specific `config.json`. It prints the resolved gamja commit SHA — **pin
-`GAMJA_REF` to that SHA** for reproducible builds.
+with `--public-url /chat/`, copies `dist/` into `packages/web/public/chat/`, and
+drops the env-specific `config.json`. It prints the resolved gamja commit SHA —
+**pin `GAMJA_REF` to that SHA** for reproducible builds.
 
 ## How it connects to Ergo
 

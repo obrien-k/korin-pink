@@ -1,0 +1,8 @@
+# build output
+dist/
+# generated types
+.astro/
+# deps
+node_modules/
+# gamja web IRC client — cloned + built into public/chat by packages/chat/build.sh
+public/chat/

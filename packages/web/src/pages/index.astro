@@ -1,0 +1,101 @@
+---
+// korin.pink landing portal — a plain Astro page (not a Starlight route) so it
+// keeps its bespoke terminal look with no docs chrome. Docs live at /wiki/*.
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/landing.css';
+
+const site = 'https://korin.pink';
+const description = 'Stellar community infrastructure — IRC, a web chat client, and the community wiki.';
+const ogImage = `${site}/wiki/social-card.jpg`;
+
+const services = [
+  {
+    key: 'irc',
+    href: 'irc://irc.korin.pink:6697',
+    aria: 'IRC — connect with any client',
+    title: 'internet relay chat',
+    meta: 'irc.korin.pink:6697 · TLS · IRCv3',
+  },
+  {
+    key: 'chat',
+    href: '/chat/',
+    aria: 'chat — IRC in your browser',
+    title: 'web irc client',
+    meta: 'gamja · browser · no setup',
+  },
+  {
+    key: 'wiki',
+    href: '/wiki/',
+    aria: 'wiki — resource center',
+    title: 'resource center',
+    meta: 'tech · trans · coding · ripping',
+  },
+  // files: backend (/files) not deployed yet — add an entry here when it lands.
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>korin.pink</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#07050a" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="canonical" href={`${site}/`} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={`${site}/`} />
+    <meta property="og:title" content="korin.pink" />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="korin.pink" />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Welcome to the Internet Podcast Feed"
+      href="/irc/feed.xml"
+    />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="wordmark">korin.pink</span><span class="cursor" aria-hidden="true">█</span>
+        <p class="tagline">stellar community infrastructure</p>
+      </header>
+
+      <nav class="services" aria-label="services">
+        {
+          services.map((s) => (
+            <a class="service" href={s.href} aria-label={s.aria}>
+              <span class="service__key">{s.key}</span>
+              <span class="service__desc">
+                <span class="service__title">{s.title}</span>
+                <span class="service__meta">{s.meta}</span>
+              </span>
+              <span class="service__arrow" aria-hidden="true">→</span>
+            </a>
+          ))
+        }
+      </nav>
+
+      <footer>
+        <span class="footer__network">stellar network</span>
+        <span class="footer__sep" aria-hidden="true">·</span>
+        {/* CRS flips to active once stellar-api v1+ consumes IRCScore in production
+            (CONTEXT.md v1.0.0 milestone). The version tracks the CRS PRD
+            (stellar-api docs/prd/01), not this repo's release tag. */}
+        <a class="footer__crs" href="https://stellar.example.com/reputation" target="_blank" rel="noopener">
+          CRS pending
+        </a>
+        <span class="footer__sep" aria-hidden="true">·</span>
+        <span class="footer__version">v0.0.4</span>
+      </footer>
+    </main>
+  </body>
+</html>
