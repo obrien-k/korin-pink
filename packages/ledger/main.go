@@ -1,80 +1,29 @@
-// Command ledger is korin.pink's hot-path accounting service (ADR-004).
+// Command ledger is korin.pink's hot-path accounting service (ADR-004), the
+// consumer side of the ADR-0016 consumption-accounting & ratio-gate contract.
 //
-// It holds a recoverable in-memory working set of consumption accounting and
-// flushes batched summaries to stellar-api over the shared-secret back-channel
-// (stellar-api ADR-0013). Stellar remains the system of record; an unflushed
-// window is bounded loss, not corruption (see docs/adr/003-irc-bridge-state.md).
+// It is a DERIVED read-model, not a parallel authority: stellar-api is the system
+// of record and the origin of every consumption event. On boot korin seeds an
+// in-memory working set from stellar's snapshot, advances it with pre-resolved
+// grant deltas (POST /ledger/consumption), and answers the grant-time gate
+// (GET /ledger/can-consume) and live stats (GET /ledger/stats). It owns no numbers
+// to flush back (stellar already persisted the truth). On restart it reloads the
+// snapshot; an unflushed window is bounded loss, not corruption
+// (docs/adr/003-irc-bridge-state.md).
 //
-// Phase 0 skeleton: config, an HTTP server with /healthz, the in-memory store +
-// channel-fed batched-flush goroutine that embodies the pattern, and graceful
-// shutdown. Consumption-event ingestion and the real flush body land in Phase
-// 1/2 once the stellar-api contracts exist.
+// Because stellar's /ledger/sync producer is deferred (stellar #324), a periodic
+// snapshot re-pull keeps policy/contribution state fresh between reboots.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 )
-
-type config struct {
-	port          string
-	flushInterval time.Duration
-	stellarURL    string // STELLAR_API_URL — flush target (system of record)
-	stellarKey    string // STELLAR_API_KEY — Bearer for the shared-secret channel
-}
-
-func loadConfig() config {
-	return config{
-		port:          env("LEDGER_PORT", "3001"),
-		flushInterval: time.Duration(envInt("LEDGER_FLUSH_INTERVAL_MS", 60000)) * time.Millisecond,
-		stellarURL:    os.Getenv("STELLAR_API_URL"),
-		stellarKey:    os.Getenv("STELLAR_API_KEY"),
-	}
-}
-
-// consumptionEvent is one accounted consumption — a member consuming a
-// Contribution. Phase 2 fleshes out the fields and the ingestion endpoint.
-type consumptionEvent struct {
-	UserID         int64 `json:"userId"`
-	ContributionID int64 `json:"contributionId"`
-	Bytes          int64 `json:"bytes"`
-}
-
-// store is the in-memory authoritative working set (the contribution_list
-// analog). Sharding/eviction come later; Phase 0 uses one map under an RWMutex.
-type store struct {
-	mu       sync.RWMutex
-	consumed map[int64]int64 // userID -> bytes accumulated since last flush
-}
-
-func newStore() *store { return &store{consumed: make(map[int64]int64)} }
-
-func (s *store) record(e consumptionEvent) {
-	s.mu.Lock()
-	s.consumed[e.UserID] += e.Bytes
-	s.mu.Unlock()
-}
-
-// drain atomically takes and clears the accumulated window for a flush.
-func (s *store) drain() map[int64]int64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.consumed) == 0 {
-		return nil
-	}
-	w := s.consumed
-	s.consumed = make(map[int64]int64)
-	return w
-}
 
 var requests atomic.Uint64
 
@@ -82,28 +31,45 @@ func main() {
 	cfg := loadConfig()
 	st := newStore()
 
-	// Buffered events channel feeds the single flush goroutine — replaces the
-	// lock-guarded flush queues of a threaded design. Handlers never block.
+	// Buffered events channel feeds the single applier goroutine — the ADR-004
+	// pattern: handlers enqueue and return, one consumer mutates the working set.
 	events := make(chan consumptionEvent, 1024)
+	srv := &server{cfg: cfg, store: st, events: events}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Boot seed. A failure (unset keys / stellar down) degrades open: the working
+	// set stays empty and can-consume fails open (unknown user ⇒ allow).
+	if snap, err := fetchSnapshot(ctx, cfg); err != nil {
+		log.Printf("boot snapshot seed skipped: %v", err)
+	} else {
+		st.seed(snap)
+		log.Printf("seeded from snapshot: %d users, %d contributions (generatedAt=%s)",
+			len(snap.Users), len(snap.Contributions), snap.GeneratedAt)
+	}
+
+	snapshots := make(chan *ledgerSnapshot, 1)
+
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); runFlusher(ctx, cfg, st, events) }()
+	wg.Add(2)
+	go func() { defer wg.Done(); runApplier(ctx, st, events, snapshots) }()
+	go func() { defer wg.Done(); runRefresh(ctx, cfg, snapshots) }()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "requests": requests.Load()})
 	})
-	// Phase 2: mux.HandleFunc("POST /consumption", ...) -> events <- consumptionEvent{...}
+	pull := func(h http.HandlerFunc) http.HandlerFunc { return requirePullKey(cfg.stellarPullKey, h) }
+	mux.HandleFunc("POST /ledger/consumption", pull(srv.handleConsumption))
+	mux.HandleFunc("GET /ledger/can-consume", pull(srv.handleCanConsume))
+	mux.HandleFunc("GET /ledger/stats", pull(srv.handleStats))
 
-	srv := &http.Server{Addr: ":" + cfg.port, Handler: count(mux), ReadHeaderTimeout: 5 * time.Second}
+	httpSrv := &http.Server{Addr: ":" + cfg.port, Handler: count(mux), ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {
-		log.Printf("ledger listening on :%s (flush every %s)", cfg.port, cfg.flushInterval)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("ledger listening on :%s (snapshot refresh every %s)", cfg.port, cfg.refreshInterval)
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}
 	}()
@@ -112,30 +78,26 @@ func main() {
 	log.Println("shutting down…")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutCtx)
-	wg.Wait() // flusher does a final flush on ctx cancel
+	_ = httpSrv.Shutdown(shutCtx)
+	wg.Wait() // applier drains buffered events before returning
 	log.Println("bye")
 }
 
-// runFlusher accumulates consumption into the store and flushes a batched
-// summary every flushInterval. On shutdown it drains buffered events and does a
-// final flush. Phase 2 replaces flush() with the stellar-api call.
-func runFlusher(ctx context.Context, cfg config, st *store, events <-chan consumptionEvent) {
-	t := time.NewTicker(cfg.flushInterval)
-	defer t.Stop()
+// runApplier is the single writer. It applies consumption events and installs
+// snapshot reseeds; on shutdown it drains buffered events before returning.
+func runApplier(ctx context.Context, st *store, events <-chan consumptionEvent, snapshots <-chan *ledgerSnapshot) {
 	for {
 		select {
 		case e := <-events:
-			st.record(e)
-		case <-t.C:
-			flush(cfg, st.drain())
+			st.apply(e)
+		case snap := <-snapshots:
+			st.seed(snap)
 		case <-ctx.Done():
 			for {
 				select {
 				case e := <-events:
-					st.record(e)
+					st.apply(e)
 				default:
-					flush(cfg, st.drain())
 					return
 				}
 			}
@@ -143,13 +105,28 @@ func runFlusher(ctx context.Context, cfg config, st *store, events <-chan consum
 	}
 }
 
-// flush is a stub. Phase 2 POSTs the window to stellar-api over the shared
-// secret (Bearer STELLAR_API_KEY). For now it reports the window size.
-func flush(cfg config, window map[int64]int64) {
-	if len(window) == 0 {
-		return
+// runRefresh re-pulls the snapshot on a ticker and hands it to the applier. A
+// failed pull is logged and skipped — the applier keeps the last-good working set.
+func runRefresh(ctx context.Context, cfg config, snapshots chan<- *ledgerSnapshot) {
+	t := time.NewTicker(cfg.refreshInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			snap, err := fetchSnapshot(ctx, cfg)
+			if err != nil {
+				log.Printf("snapshot refresh failed (keeping last good): %v", err)
+				continue
+			}
+			select {
+			case snapshots <- snap:
+			case <-ctx.Done():
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
-	log.Printf("flush: %d members accounted (target=%s) [stub]", len(window), cfg.stellarURL)
 }
 
 func count(next http.Handler) http.Handler {
@@ -157,26 +134,4 @@ func count(next http.Handler) http.Handler {
 		requests.Add(1)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func env(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
-}
-
-func envInt(k string, def int) int {
-	if v := os.Getenv(k); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return def
 }
