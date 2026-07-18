@@ -60,12 +60,15 @@ services:
     networks: [korin]
     depends_on: [ergo, api]
 
-  # Hot-path accounting authority (Go) — ADR-004. Internal-only for now
-  # (no published ports, no Caddy route); reachable on the korin network at
-  # ledger:3001. Flushes summaries to stellar-api (system of record).
+  # Hot-path accounting authority (Go) — ADR-004. No Caddy route yet; published
+  # directly on :3001 so a local stellar-api can reach it via KORIN_LEDGER_URL
+  # (stellar's api metrics/announce and ledger are separate services, not one
+  # shared address). Reachable on the korin network at ledger:3001.
   ledger:
     build:
       context: ../packages/ledger
+    ports:
+      - "3001:3001"
     env_file: ../.env
     environment:
       - LEDGER_PORT=3001
