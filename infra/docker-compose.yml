@@ -42,6 +42,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
+      # Announce delivery (ADR-006). Compose-internal only; the bridge publishes
+      # no ports, so this endpoint is unreachable from outside the network.
+      - IRC_BRIDGE_URL=http://irc-bridge:8081
     restart: unless-stopped
     networks: [korin]
     depends_on: [ergo]
@@ -56,6 +59,7 @@ services:
       - IRC_HOST=${IRC_DOMAIN:-irc.korin.pink}
       - IRC_PORT=6697
       - KORIN_API_URL=http://api:3000
+      - IRC_BRIDGE_PORT=8081
     restart: unless-stopped
     networks: [korin]
     depends_on: [ergo, api]

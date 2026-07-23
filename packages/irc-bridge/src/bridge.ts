@@ -75,7 +75,17 @@ export interface BridgeHandle {
   flush(): Promise<void>;
   /** Seal presence, final-flush, stop the timer, and quit. */
   stop(message?: string): Promise<void>;
+  /** Post a line to a joined channel (ADR-006). Never throws; the reason is the caller's to map. */
+  deliver(channel: string, message: string): DeliverOutcome;
 }
+
+/**
+ * Why a line was not delivered. `not-joined` is permanent (a config error);
+ * `not-connected` is transient (the socket is down or mid-reconnect).
+ */
+export type DeliverOutcome =
+  | { ok: true }
+  | { ok: false; reason: 'not-joined' | 'not-connected' };
 
 // ---------------------------------------------------------------------------
 // Per-user activity accumulator for the current flush window
@@ -114,6 +124,10 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
   // Guard so v4 auto_reconnect (disabled) and a burst of `socket close` events can't
   // schedule more than one reconnect at a time — the single-source-of-truth path.
   let reconnectPending = false;
+  // Whether the bridge is actually ON IRC, as opposed to merely running. The
+  // delivery endpoint (ADR-006) answers 503 while this is false rather than
+  // dropping a line into a dead socket — "process up" is not "able to speak".
+  let registered = false;
 
   function getOrCreate(nick: string): UserActivity {
     let u = users.get(nick);
@@ -307,6 +321,7 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
 
   function wireHandlers(): void {
     client.on('registered', () => {
+      registered = true;
       console.log(`[bridge] connected to ${config.host}:${config.port} as ${config.nick}`);
       // Seed current membership. WHO via the framework helper so the WHOX reply is
       // tokened and carries the channel (a bare `WHO * %nuha` emits no wholist in v4).
@@ -387,12 +402,27 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
     });
 
     client.on('socket close', () => {
+      registered = false;
       scheduleReconnect();
     });
 
     client.on('error', (err: unknown) => {
       console.error('[bridge] irc error:', err);
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delivery (ADR-006)
+  // ---------------------------------------------------------------------------
+
+  function deliver(channel: string, message: string): DeliverOutcome {
+    // Only channels the bridge has joined. client.say() takes a NICK target just as
+    // readily as a channel, so an unvalidated target would turn the bot into an
+    // arbitrary-message relay — and it holds oper privileges (packages/irc/ergo.yaml).
+    if (!config.channels.includes(channel)) return { ok: false, reason: 'not-joined' };
+    if (!registered) return { ok: false, reason: 'not-connected' };
+    client.say(channel, message);
+    return { ok: true };
   }
 
   // ---------------------------------------------------------------------------
@@ -426,5 +456,5 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
     client.quit(message);
   }
 
-  return { start, flush, stop };
+  return { start, flush, stop, deliver };
 }

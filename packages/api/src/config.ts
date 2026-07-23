@@ -20,6 +20,12 @@ const ConfigSchema = z.object({
   // validated when present; absence is tolerated and fails at call time.
   stellarApiUrl: z.string().url().optional(),
   stellarApiKey: z.string().min(1).optional(),
+
+  // api → irc-bridge delivery (ADR-006). Absent URL fails at call time, so
+  // /irc/announce answers 503 and stellar retries — never a boot failure.
+  // The channel is the api's to name; the bridge rejects any it hasn't joined.
+  ircBridgeUrl: z.string().url().optional(),
+  announceChannel: z.string().min(1).default('#announce'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -32,5 +38,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ircBridgeSecret: env.IRC_BRIDGE_SECRET || undefined,
     stellarApiUrl: env.STELLAR_API_URL || undefined,
     stellarApiKey: env.STELLAR_API_KEY || undefined,
+    ircBridgeUrl: env.IRC_BRIDGE_URL || undefined,
+    announceChannel: env.ANNOUNCE_CHANNEL || undefined,
   });
 }

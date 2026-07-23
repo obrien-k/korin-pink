@@ -2,7 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { requireSharedSecret } from '../lib/auth.js';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
-import { parsePlatformFeed, renderMinimalIrc } from '../lib/rss.js';
+import { parsePlatformFeed, renderMinimalIrc, renderIrcAnnounce } from '../lib/rss.js';
+import { BridgeDeliveryError } from '../lib/bridge.js';
 
 // ---------------------------------------------------------------------------
 // IRC metrics — shared types
@@ -126,6 +127,20 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
         }
 
         const singleLine = renderMinimalIrc(newestArtifact, environment.osc8);
+
+        // ADR-006: deliver to IRC, and fail loud if it didn't land. stellar holds
+        // its announce cursor on a non-2xx and re-pushes this item next cycle, so
+        // a 503 activates real retry rather than dropping the announce. The
+        // response body is unchanged — delivery is the new part, not the contract.
+        try {
+          await app.bridge.say(app.config.announceChannel, renderIrcAnnounce(newestArtifact));
+        } catch (err: unknown) {
+          const status = err instanceof BridgeDeliveryError ? err.status : 503;
+          const detail = err instanceof Error ? err.message : 'IRC delivery failed';
+          request.log.error({ err }, 'announce delivery failed');
+          return reply.status(status).send({ error: detail });
+        }
+
         return reply.send({ success: true, mode: 'minimal', artifact: singleLine });
       }
     } catch (err: unknown) {

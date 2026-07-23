@@ -357,3 +357,54 @@ test('no import/construction side effects: createBridge opens nothing until star
   assert.equal(client.whoCalls.length, 0);
   assert.equal(client.rawCalls.length, 0);
 });
+
+// ---------------------------------------------------------------------------
+// deliver() — the announce delivery rules (ADR-006)
+// ---------------------------------------------------------------------------
+
+function startedBridge(over: Partial<BridgeConfig> = {}) {
+  const client = new FakeClient();
+  const { fetchImpl } = makeFetch({});
+  const bridge = createBridge(baseConfig(over), { client, fetchImpl, scheduleReconnect: () => {} });
+  bridge.start();
+  return { client, bridge };
+}
+
+test('deliver: says to a joined channel once registered', async () => {
+  const { client, bridge } = startedBridge();
+  client.emit('registered');
+
+  assert.deepEqual(bridge.deliver('#announce', 'hello'), { ok: true });
+  assert.deepEqual(client.sayCalls, [{ target: '#announce', message: 'hello' }]);
+
+  await bridge.stop();
+});
+
+test('deliver: refuses a channel the bridge has not joined', async () => {
+  const { client, bridge } = startedBridge();
+  client.emit('registered');
+
+  // A nick is a valid say() target too — refusing unjoined targets is what keeps
+  // an opered bot from being turned into an arbitrary-message relay.
+  assert.deepEqual(bridge.deliver('#not-joined', 'x'), { ok: false, reason: 'not-joined' });
+  assert.deepEqual(bridge.deliver('somenick', 'x'), { ok: false, reason: 'not-joined' });
+  assert.equal(client.sayCalls.length, 0);
+
+  await bridge.stop();
+});
+
+test('deliver: refuses before registration and again after the socket drops', async () => {
+  const { client, bridge } = startedBridge();
+
+  // start() has run but no 'registered' yet — the process is up, IRC is not.
+  assert.deepEqual(bridge.deliver('#announce', 'x'), { ok: false, reason: 'not-connected' });
+
+  client.emit('registered');
+  assert.deepEqual(bridge.deliver('#announce', 'x'), { ok: true });
+
+  client.emit('socket close');
+  assert.deepEqual(bridge.deliver('#announce', 'x'), { ok: false, reason: 'not-connected' });
+  assert.equal(client.sayCalls.length, 1, 'only the registered-window call was said');
+
+  await bridge.stop();
+});
