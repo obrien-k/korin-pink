@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Config } from './config.js';
 import { createStellarClient, type StellarClient } from './lib/stellar.js';
+import { createBridgeClient, type BridgeClient } from './lib/bridge.js';
 import { ircRoutes, ircMetricsRoutes } from './routes/irc.js';
 import { filesRoutes } from './routes/files.js';
 import { wikiRoutes } from './routes/wiki.js';
@@ -11,6 +12,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     config: Config;
     stellar: StellarClient;
+    bridge: BridgeClient;
   }
 }
 
@@ -18,6 +20,9 @@ export interface BuildServerDeps {
   // Upstream stellar-api client. Defaults to one built from `config`; injected in
   // tests as the single stub point for everything korin asks of stellar.
   stellar?: StellarClient;
+  // Downstream irc-bridge delivery client (ADR-006); injected in tests so the
+  // announce path is assertable without a bridge.
+  bridge?: BridgeClient;
 }
 
 /**
@@ -31,6 +36,7 @@ export function buildServer(config: Config, deps: BuildServerDeps = {}): Fastify
 
   app.decorate('config', config);
   app.decorate('stellar', deps.stellar ?? createStellarClient(config));
+  app.decorate('bridge', deps.bridge ?? createBridgeClient(config));
 
   app.register(ircRoutes);
   app.register(ircMetricsRoutes);

@@ -129,3 +129,55 @@ export function renderMinimalIrc(artifact: PlatformArtifact, supportsOsc8: boole
 
   return `${cBold}${badgeColor}${icon} [${artifact.category.toUpperCase()}]${cReset} ${clickableTitle} ── ${artifact.description}`;
 }
+
+// irc-framework splits an over-length message and emits ONE PRIVMSG PER BLOCK, so
+// an unbounded contributor-authored title becomes a multi-message flood from an
+// opered bot. 350 is the framework's message_max_length default; the margin leaves
+// room for the prefix the server prepends when relaying to the channel.
+const IRC_LINE_MAX_BYTES = 320;
+
+/**
+ * The line korin posts to a channel (ADR-006). Plain text, always carries the URL.
+ *
+ * Deliberately NOT renderMinimalIrc: that one renders for a terminal — 24-bit ANSI
+ * colour and OSC-8 hyperlinks — and references artifact.link only inside its osc8
+ * branch, which its only caller disables. Its output is an HTTP response body and
+ * stays that way; this is the IRC-facing rendering.
+ */
+export function renderIrcAnnounce(artifact: PlatformArtifact): string {
+  const tag = `[${artifact.category.toUpperCase()}]`;
+  const link = sanitizeIrcText(artifact.link);
+  // Tag and link are load-bearing — the notification and the thing it points at.
+  // Only the title gives ground when the line exceeds the budget.
+  const fixedBytes = Buffer.byteLength(`${tag}  - ${link}`);
+  const title = truncateBytes(
+    sanitizeIrcText(artifact.title),
+    Math.max(0, IRC_LINE_MAX_BYTES - fixedBytes)
+  );
+  return `${tag} ${title} - ${link}`;
+}
+
+/**
+ * Strip control characters from contributor-authored text. Newlines are the point:
+ * irc-framework turns each one into a separate PRIVMSG, making them a flood vector
+ * rather than a formatting nuisance. The range also covers \x02/\x03, so a title
+ * cannot smuggle in IRC bold/colour codes.
+ */
+function sanitizeIrcText(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Truncate to a byte budget without splitting a multi-byte character. */
+function truncateBytes(value: string, maxBytes: number): string {
+  if (Buffer.byteLength(value) <= maxBytes) return value;
+
+  const ellipsis = '…';
+  const budget = maxBytes - Buffer.byteLength(ellipsis);
+  if (budget <= 0) return '';
+
+  const buf = Buffer.from(value);
+  // Back off to a UTF-8 boundary — continuation bytes are 10xxxxxx.
+  let end = budget;
+  while (end > 0 && (buf[end]! & 0xc0) === 0x80) end--;
+  return buf.subarray(0, end).toString('utf8') + ellipsis;
+}

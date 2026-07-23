@@ -1,5 +1,6 @@
 import { Client } from 'irc-framework';
 import { createBridge, type BridgeConfig } from './bridge.js';
+import { createDeliverServer } from './deliver.js';
 
 // ---------------------------------------------------------------------------
 // Thin entrypoint — read env, build the real client, start the bridge.
@@ -32,8 +33,18 @@ const config: BridgeConfig = {
 const client = new Client({ auto_reconnect: false });
 const bridge = createBridge(config, { client });
 
+// Inbound delivery surface (ADR-006). Bound to the compose network only — it is
+// never published in infra/docker-compose.yml — and guarded by the same
+// IRC_BRIDGE_SECRET the bridge presents on its outbound calls to korin.
+const deliverPort = parseInt(process.env.IRC_BRIDGE_PORT ?? '8081', 10);
+const deliverServer = createDeliverServer({
+  secret: config.bridgeSecret,
+  deliver: (channel, message) => bridge.deliver(channel, message),
+});
+
 async function shutdown(signal: string): Promise<void> {
   console.log(`[bridge] ${signal} — flushing and shutting down`);
+  await new Promise<void>((resolve) => deliverServer.close(() => resolve()));
   await bridge.stop();
   process.exit(0);
 }
@@ -45,3 +56,6 @@ console.log(
   `[bridge] starting — ${config.host}:${config.port} tls=${config.tls} flush=${config.flushIntervalMs}ms`,
 );
 bridge.start();
+deliverServer.listen(deliverPort, () => {
+  console.log(`[bridge] delivery endpoint listening on :${deliverPort}`);
+});
