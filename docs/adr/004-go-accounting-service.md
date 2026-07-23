@@ -1,6 +1,6 @@
 # ADR-004: Go Accounting Service (`ledger`)
 
-**Status:** Proposed
+**Status:** **Superseded (2026-07-18) — withdrawn; the service is removed.** See [Supersession](#supersession-2026-07-18) at the end of this document.
 **Date:** 2026-06-17
 **Repos:** obrien-k/korin-pink (impl) · orphic-inc/stellar-api (consumer)
 
@@ -108,3 +108,22 @@ already built and deployed.
 - Supersedes nothing; **extends** `docs/adr/001-ergo-irc-daemon.md` (Go in the
   stack) and **stellar-api ADR-0013** (the boundary). Phasing is tracked in the
   orchestrator's working roadmap.
+
+---
+
+## Supersession (2026-07-18)
+
+Everything above is retained as written. This records why the `ledger` was withdrawn.
+
+Phase 1 (the healthz scaffold) shipped; Phase 2 (consumption, gate, stats endpoints) was implemented in #65 and closed unmerged. Driving stellar's announce end-to-end runbook (orphic-inc/stellar-api#299) against a live stack showed the service does not earn its place:
+
+1. **The gate is redundant.** `GET /ledger/can-consume` returns `Allow: u.canDownload` and nothing else. stellar's `downloads.ts` reads that same flag from Postgres, authoritatively, ~20 lines later in the same request, and throws 403 on it. The remote call could only ever deny the set stellar already denies — from a derived in-memory copy that can be stale, cold, or absent, failing open on every error path. stellar's stricter balance gate (`contributed - consumed < cost`) had no equivalent here.
+2. **The stated rationale is not realized.** "Doing this per-request against Postgres in stellar-api is the wrong place for hot, high-churn counters" (Context, above) does not hold: stellar's grant transaction reads the consumer row anyway for its CAS. No query is saved.
+3. **The load premise was imported, not measured.** "Hot, high-churn counters" describes a swarm tracker — every peer re-announcing every ~30 minutes from untrusted clients. Stellar's profile is one event per deliberate human download. stellar ADR-0016's Context section states why: *"Stellar has no swarm: stellar issues every consumption grant itself."*
+4. **The justification was circular.** stellar ADR-0016 exists because this ADR gated Phase 2 on it; this ADR exists because *"the capability korin lacks is a hot-path accounting authority."* Neither states a problem observed in the system of record — the need was framed as a gap in korin's capabilities.
+
+**Removed:** `packages/ledger/` and the `ledger` service in `infra/docker-compose.yml`. PR #65 closed unmerged; the branch is retained if the Go is ever wanted. stellar's counterpart client is removed in orphic-inc/stellar-api (ADR-0016, also Superseded).
+
+**Unaffected:** the IRC metrics boundary (ADR-0013) and the release-announce path — the latter being the feature actually wanted here — are untouched and complete.
+
+**If revisited,** the bar is a problem observed in stellar: a measured slow path, real contention, or a question stellar cannot answer locally. The strongest surviving candidate is integrity/abuse detection (stellar ADR-0029), where correlating IRC presence with consumption is something neither system can do alone — it is held Proposed-but-blocked pending its own substrate.

@@ -60,19 +60,6 @@ services:
     networks: [korin]
     depends_on: [ergo, api]
 
-  # Hot-path accounting authority (Go) — ADR-004. Internal-only for now
-  # (no published ports, no Caddy route); reachable on the korin network at
-  # ledger:3001. Flushes summaries to stellar-api (system of record).
-  ledger:
-    build:
-      context: ../packages/ledger
-    env_file: ../.env
-    environment:
-      - LEDGER_PORT=3001
-    restart: unless-stopped
-    networks: [korin]
-    depends_on: [api]
-
   # The wiki is no longer a separate container: it's part of the unified Astro
   # build (packages/web/dist/wiki/**), served by Caddy's catch-all below. Build
   # the site on the box before `docker compose up`:
