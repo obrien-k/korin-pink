@@ -193,8 +193,9 @@ automation boundary:
 | CI owns (every deploy) | Manual one-time (never from CI) |
 | --- | --- |
 | render `/opt/korin.pink/.env` from Actions secrets | oper hashes in `infra/ergo.local.yaml` (§6a) |
-| `docker compose up` for ergo + api + irc-bridge + caddy | TLS certs in `infra/tls/` (§4) |
+| run `infra/deploy.sh` (ergo + api + irc-bridge + caddy) | TLS certs in `infra/tls/` (§4) |
 | verify the bridge SASLs into its account | NickServ/ChanServ registrations (§6b) |
+| | box-local keys in `.env.local` (§5c) |
 
 The deploy **fails fast** if the manual first-run files are missing, and fails
 if the bridge doesn't log into its account — a green run means the stack is
@@ -204,6 +205,37 @@ actually serving, not just started. Required Actions secrets/vars are listed in
 > The rendered `.env` deliberately omits IRC wiring (`IRC_HOST` etc.) — the
 > compose service env owns it (#58). Don't re-add those keys; duplicated config
 > is what caused the register→drop incident.
+
+**To deploy by hand** (no Actions run), use the same script CI does:
+
+```bash
+cd /opt/korin.pink && git pull origin main
+./infra/deploy.sh
+```
+
+It applies the prod overlay and `ERGO_CONF` for you. Don't hand-type a bare
+`docker compose up`: without those, ergo boots the committed template (empty oper
+passwords, won't start) and caddy binds 8082 with the dev Caddyfile instead of
+public 80/443. The script does not render `.env` — CI owns that, and on the box
+the file is already in place.
+
+### 5c. `.env` vs `.env.local`
+
+Compose loads **both** files for `api` and `irc-bridge`, in that order.
+
+| file | owner | lifecycle |
+| --- | --- | --- |
+| `.env` | deploy pipeline | **truncated and re-rendered every deploy** |
+| `.env.local` | the box | git-ignored, CI never touches it |
+
+Anything CI does not render — currently `GEMINI_API_KEY`, `DRIVE_ROOT_FOLDER_ID`,
+`DRIVE_WIKI_FOLDER_ID`, `GOOGLE_APPLICATION_CREDENTIALS` — belongs in
+`.env.local`, or the next deploy silently drops it and the AI/Drive routes fail
+at call time.
+
+> Later files win on duplicate keys. Put **only** the un-rendered keys in
+> `.env.local`: a wholesale copy of `.env` would shadow every secret CI rotates,
+> and the stack would keep using stale credentials with nothing to show for it.
 
 ## 6. Ergo first-run setup
 

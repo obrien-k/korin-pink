@@ -38,7 +38,20 @@ services:
       context: ../packages/api
     ports:
       - "3000:3000"
-    env_file: ../.env
+    # Two-file split so a deploy can't destroy box-local config. `.env` is
+    # DEPLOY-MANAGED — deploy.yml truncates and re-renders it from Actions secrets
+    # every run, so anything not in that render block is lost. `.env.local` is
+    # box-owned, git-ignored, and never touched by CI: put keys CI doesn't render
+    # there (GEMINI_API_KEY, DRIVE_*, GOOGLE_APPLICATION_CREDENTIALS).
+    #
+    # Later files WIN on duplicate keys, so .env.local must hold only box-only
+    # keys — a full copy of .env would shadow every rotated secret CI renders.
+    # `required: false` keeps a box without the file booting normally.
+    env_file:
+      - path: ../.env
+        required: true
+      - path: ../.env.local
+        required: false
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
@@ -52,7 +65,12 @@ services:
   irc-bridge:
     build:
       context: ../packages/irc-bridge
-    env_file: ../.env
+    # Same deploy-managed / box-owned split as api above.
+    env_file:
+      - path: ../.env
+        required: true
+      - path: ../.env.local
+        required: false
     environment:
       # Dial ergo by its cert hostname (network alias above), never `ergo` —
       # Node TLS rejects the mismatched cert. IRC_TLS defaults to true.
