@@ -82,8 +82,11 @@ the line does not land.**
   already did, but the blast radius now includes making the bot speak in its joined
   channels.
 - A line can post twice — at-least-once delivery means a `say()` that lands without
-  stellar seeing the 2xx is retried five minutes later. Accepted: korin has no
-  stable artifact id to dedupe on without a cross-repo change.
+  stellar seeing the 2xx is retried five minutes later. Accepted rather than
+  suppressed: the feed already carries a stable per-item id
+  (`<guid isPermaLink="false">stellar-contribution-{id}</guid>`), which
+  `parsePlatformFeed` discards, so dedupe is available korin-side alone whenever the
+  duplicate rate justifies the state. It does not today.
 - A bridge that is down blocks the announce queue rather than draining it. Intended,
   and visible in stellar's logs.
 - stellar requires no change; the `/irc/announce` request and response shapes are
