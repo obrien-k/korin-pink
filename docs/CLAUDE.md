@@ -22,10 +22,14 @@
 ```
 korin-pink/             ← you are here (impl repo)
   packages/
-    api/                ← Fastify + TS (files, wiki, IRC metrics + verify, AI, mail)
+    api/                ← Fastify + TS (files, wiki, IRC metrics + verify + announce, AI, mail)
     web/                ← Astro app: landing portal (/) + Starlight wiki (/wiki/*)
     irc/                ← Ergo IRCd config + Dockerfile
-    irc-bridge/         ← Node bot: Ergo → metrics + !verify relay → stellar-api
+    irc-bridge/         ← Node bot: Ergo → metrics + !verify relay → stellar-api;
+                          also serves POST /say, the announce delivery leg (ADR-006)
+    chat/               ← gamja web IRC client, served at /chat/
+    harden/             ← firewall ruleset + fail2ban filter generators (test-driven;
+                          the repo's only test suite — see #72, nothing gates it in CI)
   infra/
     docker-compose.yml  ← universal baseline (deployment-agnostic)
     Caddyfile
@@ -34,7 +38,7 @@ korin-pink/             ← you are here (impl repo)
     home.md             ← start here
     CONTEXT.md          ← current focus + decisions
     AGENTS.md           ← agent workflow
-    adr/                ← architectural decision records (001, 002, 003)
+    adr/                ← architectural decision records (001–006; 004 superseded)
     deploy/             ← self-host, VPS, GCP guides
 ```
 
@@ -136,7 +140,7 @@ Do not implement scoring logic in this repo. Emit raw signals only.
 ## Coding Conventions
 
 - **Language:** TypeScript (strict mode). Go only if a package explicitly opts in.
-- **Runtime:** Node.js 20+
+- **Runtime:** Node.js 22+ (`.nvmrc`, root `engines`)
 - **Package manager:** pnpm workspaces + turborepo
 - **HTTP:** Fastify 4. No Express.
 - **Validation:** Zod at every API boundary. No `any`.
