@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/obrien-k/korin-pink/compare/korin-pink-v0.3.0...korin-pink-v0.4.0) (2026-07-24)
+
+
+### Added
+
+* **irc:** announce delivery leg — korin posts rendered lines to #announce ([#71](https://github.com/obrien-k/korin-pink/issues/71)) ([ffce8ee](https://github.com/obrien-k/korin-pink/commit/ffce8ee49dfca8d6d63882cc20cfd7db0ff4e35a))
+
+
+### Fixed
+
+* **irc-bridge:** EXPOSE the port the delivery endpoint actually binds ([#76](https://github.com/obrien-k/korin-pink/issues/76)) ([2fdad69](https://github.com/obrien-k/korin-pink/commit/2fdad698674bc618044952f33c62e31a2b2635e4))
+
+
+### Docs
+
+* **context:** correct the /irc/announce auth claim and refresh post-ADR-006 drift ([#78](https://github.com/obrien-k/korin-pink/issues/78)) ([ee9882d](https://github.com/obrien-k/korin-pink/commit/ee9882dca94acdee5fc8ce0798a1b4db5e7b26ec))
+
 ## [0.3.0](https://github.com/obrien-k/korin-pink/compare/korin-pink-v0.2.0...korin-pink-v0.3.0) (2026-07-12)
 
 
