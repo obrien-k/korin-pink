@@ -4,10 +4,11 @@ title: "Learning Rights Signatures"
 
 ![NIN](/wiki/psd/nin2-border.png)
 
-[Download the PSD source file](/wiki/psd/nin2-border.psd)
+<a href="/wiki/psd/nin2-border.psd" download>Download the PSD source file</a>
+
 
 ![Pirate](/wiki/psd/pirate-revamp.png)
 
-[Download the PSD source file](/wiki/psd/pirate-revamp.psd)
+<a href="/wiki/psd/pirate-revamp.psd" download>Download the PSD source file</a>
 
 CC-0
