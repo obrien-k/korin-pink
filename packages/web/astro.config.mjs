@@ -67,8 +67,8 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Operating Systems',
-          items: [{ autogenerate: { directory: 'wiki/operating-system' } }],
+          label: 'Computing',
+          items: [{ autogenerate: { directory: 'wiki/computing/operating-system' } }, {slug: 'wiki/computing/design/lr-signatures'}],
         },
         {
           label: 'Blog Posts',
