@@ -235,6 +235,12 @@ oper-classes:
       - "snomasks"
       - "roleplay"
       - "relaymsg"
+      # ADR-007: register private-community channels (#c-<id>) and recover a
+      # squatted one with ChanServ PURGE. Also lifts the per-account channel cap.
+      - "chanreg"
+      # ADR-007: a projection's MODE/KICK lines share the connection with
+      # announces; flood control would queue announces behind them.
+      - "nofakelag"
   "sysop":
     title: Korin SysOp
     capabilities:
@@ -262,7 +268,9 @@ limits:
     max-bytes: 4096
     max-lines: 100
   whowas-entries: 100
-  chan-list-modes: 60
+  # ADR-007: a private community's +I list holds one mask per member, and the
+  # membership projection cap (MAX_ACL_NICKS) matches this.
+  chan-list-modes: 1000
   registration-messages: 1024
 
 fakelag:

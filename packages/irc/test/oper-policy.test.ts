@@ -65,6 +65,22 @@ test('a human SysOp exists that can govern channel registrations', () => {
   assert.ok(governs, 'expected at least one oper whose class has the "chanreg" capability');
 });
 
+test('the bridge bot class holds exactly what it needs, and no account or mode override (ADR-007)', () => {
+  const classes: Record<string, { capabilities?: string[] }> = config['oper-classes'] ?? {};
+  assert.deepEqual(
+    [...(classes.bot?.capabilities ?? [])].sort(),
+    ['ban', 'chanreg', 'kill', 'nofakelag', 'relaymsg', 'roleplay', 'snomasks'],
+    'widening the bot class is a security decision: record it in an ADR first',
+  );
+});
+
+test('a +I list can hold a full membership projection (ADR-007: MAX_ACL_NICKS = 1000)', () => {
+  assert.ok(
+    (config.limits?.['chan-list-modes'] ?? 0) >= 1000,
+    'limits.chan-list-modes must be at least the projection cap, or large private communities break',
+  );
+});
+
 test('channel registration is operator-only (core channels cannot be squatted)', () => {
   assert.equal(
     config.channels?.registration?.['operator-only'],

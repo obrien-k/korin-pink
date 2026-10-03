@@ -42,6 +42,9 @@ korin-internal secrets (not shared with stellar) also set on korin-pink:
 gh secret set IRC_BRIDGE_SECRET -R obrien-k/korin-pink -b"$(openssl rand -hex 32)"
 gh secret set IRC_SASL_USER     -R obrien-k/korin-pink -b'stellar-bridge'
 gh secret set IRC_SASL_PASS     -R obrien-k/korin-pink -b'<bridge Ergo account password>'
+# ADR-007: the plaintext you hashed with `ergo genpasswd` for opers.stellar-bridge
+# in infra/ergo.local.yaml. The bridge /OPERs with it to register #c-<id> channels.
+gh secret set IRC_OPER_PASS     -R obrien-k/korin-pink -b'<stellar-bridge oper password>'
 ```
 
 Non-secret config as repo **variables** (not secrets):

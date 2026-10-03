@@ -26,6 +26,10 @@ const config: BridgeConfig = {
     .split(',')
     .map((c) => c.trim())
     .filter(Boolean),
+  // ADR-007: the oper block in packages/irc/ergo.yaml, so the bridge can register
+  // private-community channels. Without IRC_OPER_PASS, projections answer 503.
+  operName: process.env.IRC_OPER_NAME ?? 'stellar-bridge',
+  operPass: process.env.IRC_OPER_PASS ?? '',
 };
 
 // auto_reconnect:false — createBridge owns the single reconnect path so v4's built-in
@@ -40,6 +44,7 @@ const deliverPort = parseInt(process.env.IRC_BRIDGE_PORT ?? '8081', 10);
 const deliverServer = createDeliverServer({
   secret: config.bridgeSecret,
   deliver: (channel, message) => bridge.deliver(channel, message),
+  applyAcl: (channel, nicks) => bridge.applyAcl(channel, nicks),
 });
 
 async function shutdown(signal: string): Promise<void> {

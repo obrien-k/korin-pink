@@ -22,6 +22,8 @@ import {
 } from './verify.js';
 import { fetchStellarId } from './resolve.js';
 import { extractMentions } from './mentions.js';
+import { createAclManager, type AclOutcome } from './acl.js';
+import { isPrivateChannel } from './channels.js';
 
 // ---------------------------------------------------------------------------
 // Injected dependencies
@@ -56,6 +58,15 @@ export interface BridgeConfig {
   channels: string[];
   /** Delay before a dropped socket reconnects. Defaults to 10s. */
   reconnectDelayMs?: number;
+  /**
+   * OPER credentials (ADR-007). The bridge opers up on connect so it can
+   * ChanServ-register private-community channels. Unset: projections answer 503,
+   * and nothing else changes.
+   */
+  operName?: string;
+  operPass?: string;
+  /** Per-step wait for Ergo during a projection. Defaults to 10s. */
+  aclStepTimeoutMs?: number;
 }
 
 export interface BridgeDeps {
@@ -77,15 +88,21 @@ export interface BridgeHandle {
   stop(message?: string): Promise<void>;
   /** Post a line to a joined channel (ADR-006). Never throws; the reason is the caller's to map. */
   deliver(channel: string, message: string): DeliverOutcome;
+  /** Apply a membership projection to a private channel (ADR-007). Never throws. */
+  applyAcl(channel: string, nicks: string[]): Promise<AclOutcome>;
 }
 
 /**
- * Why a line was not delivered. `not-joined` is permanent (a config error);
- * `not-connected` is transient (the socket is down or mid-reconnect).
+ * Why a line was not delivered.
+ * - `not-joined` is permanent: a channel that is neither a core channel nor a
+ *   private-community one (a config error).
+ * - `not-projected` is transient: a `#c-N` with no projection since the bridge
+ *   connected (ADR-007). The next projection makes it sendable.
+ * - `not-connected` is transient: the socket is down or mid-reconnect.
  */
 export type DeliverOutcome =
   | { ok: true }
-  | { ok: false; reason: 'not-joined' | 'not-connected' };
+  | { ok: false; reason: 'not-joined' | 'not-projected' | 'not-connected' };
 
 // ---------------------------------------------------------------------------
 // Per-user activity accumulator for the current flush window
@@ -128,6 +145,12 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
   // delivery endpoint (ADR-006) answers 503 while this is false rather than
   // dropping a line into a dead socket — "process up" is not "able to speak".
   let registered = false;
+  const acl = createAclManager({
+    client,
+    selfNick: config.nick,
+    isRegistered: () => registered,
+    stepTimeoutMs: config.aclStepTimeoutMs,
+  });
 
   function getOrCreate(nick: string): UserActivity {
     let u = users.get(nick);
@@ -320,6 +343,7 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
   // ---------------------------------------------------------------------------
 
   function wireHandlers(): void {
+    acl.wire();
     client.on('registered', () => {
       registered = true;
       console.log(`[bridge] connected to ${config.host}:${config.port} as ${config.nick}`);
@@ -328,6 +352,9 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
       client.who('*');
       // The bridge only sees activity in channels it's a member of — join the core set.
       for (const channel of config.channels) client.raw('JOIN', channel);
+      // ADR-007: oper up, so projections can ChanServ-register #c-N. The password
+      // is never logged; acl.ts reads the 381 / 464 / 491 reply.
+      if (config.operName && config.operPass) client.raw('OPER', config.operName, config.operPass);
     });
 
     client.on('join', (event: { nick: string; channel: string }) => {
@@ -403,6 +430,8 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
 
     client.on('socket close', () => {
       registered = false;
+      // Joined channels, OPER and the sendable set all belong to the dead connection.
+      acl.reset();
       scheduleReconnect();
     });
 
@@ -419,8 +448,12 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
     // Only channels the bridge has joined. client.say() takes a NICK target just as
     // readily as a channel, so an unvalidated target would turn the bot into an
     // arbitrary-message relay — and it holds oper privileges (packages/irc/ergo.yaml).
-    if (!config.channels.includes(channel)) return { ok: false, reason: 'not-joined' };
+    // ADR-007 widens the set to the #c-N channels a projection has secured, and
+    // nothing else.
+    const core = config.channels.includes(channel);
+    if (!core && !isPrivateChannel(channel)) return { ok: false, reason: 'not-joined' };
     if (!registered) return { ok: false, reason: 'not-connected' };
+    if (!core && !acl.isSendable(channel)) return { ok: false, reason: 'not-projected' };
     client.say(channel, message);
     return { ok: true };
   }
@@ -456,5 +489,5 @@ export function createBridge(config: BridgeConfig, deps: BridgeDeps): BridgeHand
     client.quit(message);
   }
 
-  return { start, flush, stop, deliver };
+  return { start, flush, stop, deliver, applyAcl: (channel, nicks) => acl.apply(channel, nicks) };
 }

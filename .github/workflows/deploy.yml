@@ -183,6 +183,7 @@ jobs:
           IRC_BRIDGE_SECRET:   ${{ secrets.IRC_BRIDGE_SECRET }}
           IRC_SASL_USER:       ${{ secrets.IRC_SASL_USER }}
           IRC_SASL_PASS:       ${{ secrets.IRC_SASL_PASS }}
+          IRC_OPER_PASS:       ${{ secrets.IRC_OPER_PASS }}   # ADR-007: stellar-bridge /OPER plaintext
           # Non-secret config (repo variables, with defaults).
           STELLAR_API_URL:     ${{ vars.STELLAR_API_URL }}
           API_DOMAIN:          ${{ vars.API_DOMAIN || 'api.korin.pink' }}
@@ -191,7 +192,7 @@ jobs:
           username: ${{ secrets.VPS_USER || 'root' }}
           key:      ${{ secrets.VPS_SSH_KEY }}
           # Forward the env above into the remote shell (kept out of the logged script).
-          envs: STELLAR_PULL_KEY,STELLAR_SERVICE_KEY,IRC_BRIDGE_SECRET,IRC_SASL_USER,IRC_SASL_PASS,STELLAR_API_URL,API_DOMAIN
+          envs: STELLAR_PULL_KEY,STELLAR_SERVICE_KEY,IRC_BRIDGE_SECRET,IRC_SASL_USER,IRC_SASL_PASS,IRC_OPER_PASS,STELLAR_API_URL,API_DOMAIN
           script: |
             set -euo pipefail
             cd /opt/korin.pink
@@ -215,6 +216,7 @@ jobs:
             IRC_BRIDGE_SECRET=${IRC_BRIDGE_SECRET}
             IRC_SASL_USER=${IRC_SASL_USER}
             IRC_SASL_PASS=${IRC_SASL_PASS}
+            IRC_OPER_PASS=${IRC_OPER_PASS}
             FLUSH_INTERVAL_MS=60000
             EOF
             # Gates, prod-overlay bring-up, bridge recreate and SASL verification
