@@ -92,4 +92,7 @@ the line does not land.**
 - stellar requires no change; the `/irc/announce` request and response shapes are
   unchanged.
 - #67 (`#c-<id>` routing) extends the joined set and reuses `POST /say` rather than
-  re-cutting the signature.
+  re-cutting the signature. **Amended by [ADR-007](007-private-community-channels.md):**
+  the sendable set is `IRC_CHANNELS` plus the projected `#c-<digits>` channels, and
+  "not joined is permanent" holds only for `IRC_CHANNELS`. A `#c-N` not yet
+  projected is transient, and answers `503`.

@@ -126,6 +126,7 @@ channelQuality = log1p(channelCount)   / log1p(5)
 | `irc-framework` as IRC client | IRCv3 support, SASL PLAIN, active maintenance | — |
 | Portal + wiki as one Astro app (`packages/web`) | One build, one lockfile, `/wiki/*` URLs preserved; retires the standalone Docusaurus project and its nginx container | adr/005 |
 | Announce delivery pushes api → bridge `POST /say`, fails loud with 503 | stellar already owns durable retry; a bridge-side buffer would advance the cursor then lose the item | adr/006 |
+| Private-community channels `#c-<id>`: joined, secured and populated on projection; private never falls back to `#announce` | A not-joined private channel is transient, so stellar's held cursor self-heals; an unregistered channel could be squatted, stalling every announce | adr/007 |
 | Ledger service withdrawn | Superseded; scaffold removed in #68 | adr/004 (superseded) |
 
 ---
