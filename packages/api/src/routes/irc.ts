@@ -4,6 +4,7 @@ import { requireSharedSecret } from '../lib/auth.js';
 import { parseStrictPodcast } from '../lib/rss_strict.js';
 import { parsePlatformFeed, renderMinimalIrc, renderIrcAnnounce } from '../lib/rss.js';
 import { BridgeDeliveryError } from '../lib/bridge.js';
+import { communityChannel, dedupeNicks, isValidNick, MAX_ACL_NICKS } from '../lib/nicks.js';
 
 // ---------------------------------------------------------------------------
 // IRC metrics — shared types
@@ -84,6 +85,13 @@ const InboundFeedSchema = z.object({
   })
 });
 
+// Membership projection (korin ADR-007). The cap matches the channel's +I list
+// limit, so a set that could not be represented is refused, never cut short.
+const MembershipSchema = z.object({
+  community: z.number().int().positive(),
+  nicks: z.array(z.string()).max(MAX_ACL_NICKS),
+});
+
 export async function ircNotificationRoutes(app: FastifyInstance): Promise<void> {
   // stellar-api pushes release RSS here (ADR-0013 §Integration contract),
   // presenting the shared pull key. Auth is the one shared-secret guard.
@@ -147,6 +155,39 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
       const errorMessage = err instanceof Error ? err.message : 'Unknown compilation failure';
       return reply.status(500).send({ error: errorMessage });
     }
+  });
+
+  // stellar-api projects a private community's complete verified-nick set here
+  // (ADR-0030 Decision 4, korin ADR-007): on its periodic reconcile, and before
+  // each private announce. A full replacement, never a delta. korin keeps no
+  // copy; the bridge turns it into #c-<community>'s ACL.
+  app.post('/irc/membership', {
+    preHandler: requireSharedSecret('x-pull-key', app.config.stellarPullKey),
+  }, async (request, reply) => {
+    const parsed = MembershipSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Validation failed', details: parsed.error.format() });
+    }
+    // Every nick becomes raw MODE/KICK text on an opered bot, so one bad nick
+    // fails the whole set rather than being dropped: stellar only sends verified
+    // nicks, so a refusal here is a bug to surface, not a member to lose quietly.
+    const invalid = parsed.data.nicks.filter((n) => !isValidNick(n)).length;
+    if (invalid > 0) {
+      return reply.status(400).send({ error: `${invalid} nick(s) are not valid IRC nicks` });
+    }
+
+    try {
+      await app.bridge.setChannelAcl(
+        communityChannel(parsed.data.community),
+        dedupeNicks(parsed.data.nicks)
+      );
+    } catch (err: unknown) {
+      const status = err instanceof BridgeDeliveryError ? err.status : 503;
+      const detail = err instanceof Error ? err.message : 'projection failed';
+      request.log.error({ err }, 'membership projection failed');
+      return reply.status(status).send({ error: detail });
+    }
+    return reply.status(204).send();
   });
 }
 

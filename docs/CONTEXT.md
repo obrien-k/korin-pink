@@ -13,11 +13,12 @@ Current project and domain context for `obrien-k/korin-pink`.
 
 **What's implemented:**
 - irc-bridge daemon (`packages/irc-bridge/src/index.ts`): connects to Ergo via TLS + SASL, tracks join/part/quit/nick/privmsg per user, flushes `{ users: UserMetrics[] }` to `POST /irc/metrics` every 60s (`FLUSH_INTERVAL_MS`)
-- irc-bridge delivery endpoint (`packages/irc-bridge/src/deliver.ts`): `POST /say` on `IRC_BRIDGE_PORT` (default 8081), auth `x-bridge-secret`. Bound to the compose network, never published. Rejects any channel the bridge has not joined (ADR-006)
+- irc-bridge delivery endpoint (`packages/irc-bridge/src/deliver.ts`): `POST /say` on `IRC_BRIDGE_PORT` (default 8081), auth `x-bridge-secret`. Bound to the compose network, never published. Rejects any channel the bridge has not joined (ADR-006). Also `PUT /channels/:channel/acl`, which applies a private community's membership projection to `#c-<id>`: register, secure (`+i +s +n +t`), replace `+I`, kick non-members. Only a channel secured that way is sendable (ADR-007)
 - korin API (`packages/api/src/routes/irc.ts`):
   - `POST /irc/metrics` — bridge push, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`
   - `GET /irc/metrics` — stellar-api pull, auth: `x-pull-key: STELLAR_PULL_KEY`
   - `POST /irc/announce` — stellar-api push, auth: `x-pull-key: STELLAR_PULL_KEY`; renders the item and posts it to `ANNOUNCE_CHANNEL` (default `#announce`) via the bridge. Returns **503** when the line cannot be delivered, so stellar's cursor holds and re-pushes (ADR-006)
+  - `POST /irc/membership` — stellar-api push, auth: `x-pull-key`; `{ community, nicks[] }`, the community's complete verified-nick set. Validates every nick (one bad nick or more than 1,000 is `400`), then hands it to the bridge as `#c-<community>`'s ACL. `204` once applied, `503` otherwise (ADR-007)
   - `POST /irc/verify` — bridge relays a member's `!verify <code>`, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`; proxies to `stellar.verifyNick` → stellar-api `POST /api/users/irc-nick/verify` (ADR-0015)
   - In-process store; no DB dependency for metrics
 - stellar-api (on trunk since #163): `User.ircNick`, `PUT /users/:id/irc-nick`, `ircJob.ts` (polls every 5min), IRCScore in CRS REGISTRY

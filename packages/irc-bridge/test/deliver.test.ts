@@ -1,23 +1,34 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleDeliverRequest, type DeliverHttpDeps } from '../src/deliver.js';
+import { handleBridgeRequest, handleDeliverRequest, type DeliverHttpDeps } from '../src/deliver.js';
 import type { DeliverOutcome } from '../src/bridge.js';
+import type { AclOutcome } from '../src/acl.js';
 
 // ADR-006. handleDeliverRequest is pure, so every rule is assertable without
 // binding a port or opening an IRC socket.
 
 const SECRET = 'bridge-secret';
 
-function deps(outcome: DeliverOutcome = { ok: true }): DeliverHttpDeps & {
+function deps(
+  outcome: DeliverOutcome = { ok: true },
+  aclOutcome: AclOutcome = { ok: true }
+): DeliverHttpDeps & {
   calls: Array<{ channel: string; message: string }>;
+  aclCalls: Array<{ channel: string; nicks: string[] }>;
 } {
   const calls: Array<{ channel: string; message: string }> = [];
+  const aclCalls: Array<{ channel: string; nicks: string[] }> = [];
   return {
     secret: SECRET,
     calls,
+    aclCalls,
     deliver(channel, message) {
       calls.push({ channel, message });
       return outcome;
+    },
+    async applyAcl(channel, nicks) {
+      aclCalls.push({ channel, nicks });
+      return aclOutcome;
     },
   };
 }
@@ -93,4 +104,63 @@ test('503s while the bridge is off IRC — transient, so stellar retries', () =>
 
   assert.equal(res.status, 503);
   assert.match(String(res.body.error), /not connected/);
+});
+
+test('503s a private channel not projected yet — transient, the next projection fixes it (ADR-007)', () => {
+  const res = handleDeliverRequest(
+    req({ rawBody: JSON.stringify({ channel: '#c-7', message: 'x' }) }),
+    deps({ ok: false, reason: 'not-projected' })
+  );
+  assert.equal(res.status, 503);
+});
+
+// ── PUT /channels/:channel/acl (ADR-007) ─────────────────────────────────────
+
+function aclReq(overrides: Partial<Parameters<typeof handleBridgeRequest>[0]> = {}) {
+  return {
+    method: 'PUT',
+    path: '/channels/%23c-7/acl',
+    secret: SECRET,
+    rawBody: JSON.stringify({ nicks: ['alice', 'bob'] }),
+    ...overrides,
+  };
+}
+
+test('acl: applies an authenticated projection to the decoded channel and answers 204', async () => {
+  const d = deps();
+  const res = await handleBridgeRequest(aclReq(), d);
+
+  assert.equal(res.status, 204);
+  assert.deepEqual(d.aclCalls, [{ channel: '#c-7', nicks: ['alice', 'bob'] }]);
+});
+
+test('acl: 401s a wrong or missing secret without touching IRC', async () => {
+  const d = deps();
+  assert.equal((await handleBridgeRequest(aclReq({ secret: 'nope' }), d)).status, 401);
+  assert.equal((await handleBridgeRequest(aclReq({ secret: undefined }), d)).status, 401);
+  assert.deepEqual(d.aclCalls, []);
+});
+
+test('acl: 400s malformed JSON and a nicks field that is not an array of strings', async () => {
+  const d = deps();
+  for (const rawBody of ['not json', '{}', JSON.stringify({ nicks: 'alice' }), JSON.stringify({ nicks: [1] })]) {
+    assert.equal((await handleBridgeRequest(aclReq({ rawBody }), d)).status, 400, rawBody);
+  }
+  assert.deepEqual(d.aclCalls, []);
+});
+
+test('acl: maps refusals — the request at fault is 400, the bridge state is 503', async () => {
+  const status = async (reason: Exclude<AclOutcome, { ok: true }>['reason']) =>
+    (await handleBridgeRequest(aclReq(), deps({ ok: true }, { ok: false, reason }))).status;
+
+  assert.equal(await status('invalid-channel'), 400);
+  assert.equal(await status('invalid-nicks'), 400);
+  for (const reason of ['not-connected', 'not-oper', 'no-op', 'register-refused', 'timeout'] as const) {
+    assert.equal(await status(reason), 503, reason);
+  }
+});
+
+test('acl: only PUT routes to the projection; anything else on that path is a 404', async () => {
+  const res = await handleBridgeRequest(aclReq({ method: 'POST' }), deps());
+  assert.equal(res.status, 404);
 });
