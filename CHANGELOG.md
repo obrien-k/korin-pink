@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/obrien-k/korin-pink/compare/korin-pink-v0.3.0...korin-pink-v0.4.0) (2026-10-03)
+
+
+### Added
+
+* **irc-bridge:** project private-community membership onto #c-&lt;id&gt; ([#67](https://github.com/obrien-k/korin-pink/issues/67)) ([#86](https://github.com/obrien-k/korin-pink/issues/86)) ([ed3ce40](https://github.com/obrien-k/korin-pink/commit/ed3ce4035fc2aa4ef1781afb6e813b1b18e63c4f))
+* **irc:** announce delivery leg — korin posts rendered lines to #announce ([#71](https://github.com/obrien-k/korin-pink/issues/71)) ([ffce8ee](https://github.com/obrien-k/korin-pink/commit/ffce8ee49dfca8d6d63882cc20cfd7db0ff4e35a))
+
+
+### Fixed
+
+* **api:** route PRIVATE announces to #c-&lt;community&gt;, never #announce ([#67](https://github.com/obrien-k/korin-pink/issues/67)) ([#87](https://github.com/obrien-k/korin-pink/issues/87)) ([3c33d83](https://github.com/obrien-k/korin-pink/commit/3c33d83360a3f0812385a3498021660f6027f1ad))
+* **irc-bridge:** confirm ChanServ PURGE with the code alone ([#67](https://github.com/obrien-k/korin-pink/issues/67)) ([#89](https://github.com/obrien-k/korin-pink/issues/89)) ([bec6206](https://github.com/obrien-k/korin-pink/commit/bec6206a0ba028020004b354c5d32c3c7e85381c))
+* **irc-bridge:** EXPOSE the port the delivery endpoint actually binds ([#76](https://github.com/obrien-k/korin-pink/issues/76)) ([2fdad69](https://github.com/obrien-k/korin-pink/commit/2fdad698674bc618044952f33c62e31a2b2635e4))
+
+
+### Docs
+
+* **adr:** ADR-007 private-community channels — projection, ACL and routing ([#85](https://github.com/obrien-k/korin-pink/issues/85)) ([4d900eb](https://github.com/obrien-k/korin-pink/commit/4d900ebf899477cf4345e7fc08a2f590699f8100))
+* **context:** correct the /irc/announce auth claim and refresh post-ADR-006 drift ([#78](https://github.com/obrien-k/korin-pink/issues/78)) ([ee9882d](https://github.com/obrien-k/korin-pink/commit/ee9882dca94acdee5fc8ce0798a1b4db5e7b26ec))
+
 ## [0.3.0](https://github.com/obrien-k/korin-pink/compare/korin-pink-v0.2.0...korin-pink-v0.3.0) (2026-07-12)
 
 
