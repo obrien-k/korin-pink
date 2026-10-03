@@ -77,12 +77,36 @@ export const VerifyRelaySchema = z.object({
   code: z.string().min(1),
 });
 
+/**
+ * Where an announce goes (stellar-api ADR-0030 Decision 3, korin ADR-007).
+ * Absent or PUBLIC: the public channel. PRIVATE: the community's `#c-<id>` and
+ * nowhere else. `channel` is a reserved slot no decision has given a meaning,
+ * so a non-empty one is refused rather than allowed to redirect a line.
+ */
+const AnnounceTargetSchema = z
+  .object({
+    visibility: z.enum(['PUBLIC', 'PRIVATE']),
+    community: z.number().int().positive().optional(),
+    channel: z.string().optional(),
+  })
+  .superRefine((target, ctx) => {
+    if (target.visibility === 'PRIVATE' && target.community === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['community'], message: 'a PRIVATE target needs its community' });
+    }
+    if (target.channel) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['channel'], message: 'channel is reserved and must be empty' });
+    }
+  });
+
 const InboundFeedSchema = z.object({
   xmlPayload: z.string().min(1, 'Payload cannot be blank'),
   templateType: z.enum(['podcast', 'minimal']),
   environment: z.object({
     osc8: z.boolean()
-  })
+  }),
+  // Was absent, and a plain z.object drops unknown keys: from stellar v0.9.0 until
+  // this was declared, every PRIVATE announce was posted to the public channel.
+  target: AnnounceTargetSchema.optional(),
 });
 
 // Membership projection (korin ADR-007). The cap matches the channel's +I list
@@ -107,7 +131,14 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
       });
     }
 
-    const { xmlPayload, templateType, environment } = parseResult.data;
+    const { xmlPayload, templateType, environment, target } = parseResult.data;
+    // A PRIVATE line goes to its community's channel only. If that channel has
+    // not been projected yet the bridge answers 503 and stellar retries the item:
+    // it never falls back to the public channel (ADR-007).
+    const deliverTo =
+      target?.visibility === 'PRIVATE' && target.community !== undefined
+        ? communityChannel(target.community)
+        : app.config.announceChannel;
 
     try {
       if (templateType === 'podcast') {
@@ -141,7 +172,7 @@ export async function ircNotificationRoutes(app: FastifyInstance): Promise<void>
         // a 503 activates real retry rather than dropping the announce. The
         // response body is unchanged — delivery is the new part, not the contract.
         try {
-          await app.bridge.say(app.config.announceChannel, renderIrcAnnounce(newestArtifact));
+          await app.bridge.say(deliverTo, renderIrcAnnounce(newestArtifact));
         } catch (err: unknown) {
           const status = err instanceof BridgeDeliveryError ? err.status : 503;
           const detail = err instanceof Error ? err.message : 'IRC delivery failed';
