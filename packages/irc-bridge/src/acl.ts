@@ -144,7 +144,10 @@ export function createAclManager(deps: AclDeps): AclManager {
     const code = parsePurgeCode((await prompt).message, channel)!;
 
     const purged = waitFor('notice', (p) => isChanServ(p) && /successfully purged/i.test(p.message));
-    chanServ(`PURGE ADD ${channel} ${code} ADR-007 squat recovery`);
+    // The code alone. Ergo's PURGE takes at most 3 parameters with an unsplit
+    // final one (irc/chanserv.go), so a reason after the code would merge into
+    // it, never equal it, and draw another prompt instead of a purge.
+    chanServ(`PURGE ADD ${channel} ${code}`);
     await purged;
     joined.delete(casefold(channel)); // the purge kicked the bridge too
 

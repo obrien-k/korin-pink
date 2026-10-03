@@ -123,7 +123,8 @@ test('apply: a squatted channel is recovered with PURGE ADD (confirmed), PURGE D
   client.emit('notice', chanServ('Warning: you are about to empty this channel and remove it from the server.'));
   client.emit('notice', chanServ(`To confirm, run this command: /CS PURGE ADD ${CH} c0ffee`));
   await tick();
-  assert.equal(client.sayCalls.at(-1)?.message, `PURGE ADD ${CH} c0ffee ADR-007 squat recovery`);
+  // The code alone: anything after it merges into Ergo's unsplit final parameter.
+  assert.equal(client.sayCalls.at(-1)?.message, `PURGE ADD ${CH} c0ffee`);
   client.emit('kick', { kicked: SELF, channel: CH });
   client.emit('notice', chanServ(`Successfully purged channel ${CH} from the server`));
   await tick();
