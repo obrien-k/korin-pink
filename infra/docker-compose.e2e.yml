@@ -1,0 +1,65 @@
+# docker-compose.e2e.yml — the korin half of the private-community announce
+# delivery end-to-end run (ADR-007; runbook: docs/deploy/e2e-private-channels.md).
+# Built from docker-compose.smoke.yml, with what the run needs on top:
+#   - ergo.e2e.yaml: production's operator-only channel registration, the `bot`
+#     oper class (chanreg, nofakelag), chan-list-modes 1000, and a THROWAWAY oper
+#   - the bridge opers up (IRC_OPER_PASS) and joins #announce; the api can reach
+#     it (IRC_BRIDGE_URL)
+#   - inline throwaway secrets only, a named volume (`down -v` wipes it), and
+#     ports 26667/23000, clear of a real local stack and of the smoke run
+name: korin-e2e
+
+services:
+  ergo:
+    build:
+      context: ../packages/irc
+    ports:
+      - "26667:6667"
+    volumes:
+      # Mount the trimmed smoke config over the baked production one (same pattern
+      # as the universal compose's ERGO_CONF mount).
+      - ./ergo.e2e.yaml:/etc/ergo.yaml:ro
+      - ergo-e2e-data:/var/lib/ergo
+    networks: [korin]
+
+  api:
+    build:
+      context: ../packages/api
+    ports:
+      - "23000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - IRC_BRIDGE_SECRET=smoke-bridge-secret
+      - STELLAR_PULL_KEY=smoke-pull-key
+      - IRC_BRIDGE_URL=http://irc-bridge:8081
+      - ANNOUNCE_CHANNEL=#announce
+    networks: [korin]
+    depends_on: [ergo]
+
+  irc-bridge:
+    build:
+      context: ../packages/irc-bridge
+    environment:
+      - IRC_HOST=ergo
+      - IRC_PORT=6667
+      - IRC_TLS=false
+      - IRC_NICK=stellar-bridge
+      - IRC_SASL_USER=stellar-bridge
+      - IRC_SASL_PASS=smoke-bridge-pass
+      - IRC_BRIDGE_SECRET=smoke-bridge-secret
+      - IRC_CHANNELS=#announce,#stellar
+      - IRC_OPER_NAME=stellar-bridge
+      - IRC_OPER_PASS=e2e-oper-pass
+      - IRC_BRIDGE_PORT=8081
+      - KORIN_API_URL=http://api:3000
+      - FLUSH_INTERVAL_MS=3000
+    networks: [korin]
+    depends_on: [ergo, api]
+
+volumes:
+  ergo-e2e-data:
+
+networks:
+  korin:
+    driver: bridge

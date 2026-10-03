@@ -1,0 +1,101 @@
+# ergo.e2e.yaml — Ergo for the private-community announce delivery end-to-end run
+# (ADR-007; docs/deploy/e2e-private-channels.md). It starts from ergo.smoke.yaml
+# (plaintext 6667, no certs, no throttling) and adds what the run must prove
+# against production's rules: operator-only channel registration, the `bot` oper
+# class with chanreg and nofakelag, chan-list-modes 1000, and a throwaway oper.
+
+network:
+  name: korin-e2e
+
+server:
+  name: smoke.korin.test
+  listeners:
+    ":6667": {}
+  casemapping: ascii
+  enforce-utf8: true
+  relaymsg:
+    enabled: false
+  max-sendq: 96k
+  ip-limits:
+    count: false
+    max-concurrent-connections: 0
+    max-connections-per-duration: 0
+  ip-cloaking:
+    enabled: false
+
+datastore:
+  autocreate: true
+  path: /var/lib/ergo/ircd.db
+
+accounts:
+  authentication-enabled: true
+  registration:
+    enabled: true
+    allow-before-connect: true
+    email-verification:
+      enabled: false
+    throttling:
+      enabled: false
+  login-throttling:
+    enabled: false
+  require-sasl:
+    enabled: false
+  multiclient:
+    enabled: true
+    allowed-by-default: true
+    always-on: "opt-in"
+    auto-away: "opt-in"
+  nick-reservation:
+    enabled: true
+    additional-nick-limit: 2
+    method: strict
+    allow-custom-enforcement: true
+    guest-nickname-format: "Guest-*"
+    force-nick-equals-account: true
+
+channels:
+  registration:
+    enabled: true
+    operator-only: true
+  default-modes: +nt
+
+history:
+  enabled: true
+  channel-length: 128
+  chathistory-maxmessages: 100
+
+limits:
+  nicklen: 32
+  identlen: 20
+  channellen: 64
+  awaylen: 200
+  kicklen: 390
+  topiclen: 390
+  monitor-entries: 100
+  whowas-entries: 100
+  chan-list-modes: 1000
+  registration-messages: 1024
+
+logging:
+  - method: stderr
+    type: "* -userinput -useroutput"
+    level: info
+
+# e2e (korin ADR-007): the production oper shape. The hash is of the throwaway
+# password `e2e-oper-pass` set in docker-compose.e2e.yml. Never reuse either.
+oper-classes:
+  "bot":
+    title: Bridge Bot
+    capabilities:
+      - "kill"
+      - "ban"
+      - "snomasks"
+      - "roleplay"
+      - "relaymsg"
+      - "chanreg"
+      - "nofakelag"
+opers:
+  stellar-bridge:
+    class: "bot"
+    hidden: true
+    password: "$2a$04$pJ.S8sVPa3IOuTioqRI44.LS/l0O5Egcs7/1KWOoChy4/F3H3SyAW"
