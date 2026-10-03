@@ -85,6 +85,15 @@ secured that way can receive a line.**
    - A new secret, `IRC_OPER_PASS`, opers the bridge up on connect.
    - The `bot` oper class gains `chanreg` and `nofakelag`, and nothing broader.
    - `limits.chan-list-modes` rises from 60 to 1,000, matching the projection cap.
+   - `chanreg` also lifts Ergo's 15-registrations-per-account limit
+     (`checkChanLimit`), so the number of private channels has no ceiling.
+   - **A squatted channel is recovered automatically.** If the bridge joins an
+     unregistered `#c-N` and doesn't hold op, it runs ChanServ `PURGE ADD`. Ergo
+     answers with a confirmation code in a NOTICE; the bridge parses it and confirms,
+     which kicks the occupants. It then runs `PURGE DEL`, rejoins as op, registers
+     the channel and applies the ACL. This needs nothing beyond `chanreg`, Ergo's
+     snomask records it, and it runs at most once per channel: after registration
+     the bridge is the founder, and ChanServ ops it on every join.
 7. **A community that turns PUBLIC again keeps its channel.** stellar stops
    projecting it, nothing routes there any more, and the channel stays frozen with
    its last ACL. That's intended behaviour, not a leak.
@@ -110,6 +119,13 @@ secured that way can receive a line.**
   - Registration makes the bridge the founder, has ChanServ op it on join, and
     persists modes and `+I` across Ergo restarts. Requiring op before a channel
     becomes sendable covers whatever registration doesn't.
+  - Registration alone doesn't stop a squat. Any user can create `#c-1`…`#c-200`
+    today and hold them under `always-on`, and Ergo refuses `REGISTER` to anyone
+    who isn't op in the channel. Ergo's only creation control,
+    `operator-only-creation`, is global and would stop members creating any
+    channel. So the bridge recovers instead, with the one tool `chanreg` gives it:
+    `PURGE`. The alternative, a `503` and a log line for the SysOp, would leave
+    every announce stalled until a human noticed.
 - **Kicking keeps the channel matching the set.** `+i` only gates future joins. A
   member stellar has removed would otherwise keep reading, possibly for days
   under `always-on`.
