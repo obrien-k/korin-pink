@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "test": "node --import tsx --test test/*.test.ts",
-    "smoke": "node --import tsx smoke/run.ts"
+    "smoke": "node --import tsx smoke/run.ts",
+    "e2e:private-channels": "node --import tsx smoke/private-channels.ts"
   },
   "dependencies": {
     "irc-framework": "^4.14.0"
