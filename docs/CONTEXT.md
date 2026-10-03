@@ -17,7 +17,7 @@ Current project and domain context for `obrien-k/korin-pink`.
 - korin API (`packages/api/src/routes/irc.ts`):
   - `POST /irc/metrics` — bridge push, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`
   - `GET /irc/metrics` — stellar-api pull, auth: `x-pull-key: STELLAR_PULL_KEY`
-  - `POST /irc/announce` — stellar-api push, auth: `x-pull-key: STELLAR_PULL_KEY`; renders the item and posts it to `ANNOUNCE_CHANNEL` (default `#announce`) via the bridge. Returns **503** when the line cannot be delivered, so stellar's cursor holds and re-pushes (ADR-006)
+  - `POST /irc/announce` — stellar-api push, auth: `x-pull-key: STELLAR_PULL_KEY`; renders the item and posts it via the bridge to `ANNOUNCE_CHANNEL` (default `#announce`), or, for `target: { visibility: 'PRIVATE', community }`, to `#c-<community>` only and never `#announce`. A private channel not projected yet answers 503. A malformed `target`, or a non-empty reserved `channel`, is 400 (ADR-007). Returns **503** when the line cannot be delivered, so stellar's cursor holds and re-pushes (ADR-006)
   - `POST /irc/membership` — stellar-api push, auth: `x-pull-key`; `{ community, nicks[] }`, the community's complete verified-nick set. Validates every nick (one bad nick or more than 1,000 is `400`), then hands it to the bridge as `#c-<community>`'s ACL. `204` once applied, `503` otherwise (ADR-007)
   - `POST /irc/verify` — bridge relays a member's `!verify <code>`, auth: `x-bridge-secret: IRC_BRIDGE_SECRET`; proxies to `stellar.verifyNick` → stellar-api `POST /api/users/irc-nick/verify` (ADR-0015)
   - In-process store; no DB dependency for metrics
